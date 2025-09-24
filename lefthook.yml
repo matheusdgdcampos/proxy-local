@@ -1,6 +1,17 @@
 pre-commit:
   jobs:
-    - name: lint
-      run: npm run lint:ci
+    - script: "lint.sh"
+      runner: bash
       glob: "*.{js,ts,tsx,json,css,html,scss}"
       stage_fixed: true
+
+prepare-commit-msg:
+  jobs:
+    - script: "prepare-commit-msg.sh"
+      interactive: true
+      runner: bash
+
+commit-msg:
+  jobs:
+    - script: "commit-msg.sh"
+      runner: bash

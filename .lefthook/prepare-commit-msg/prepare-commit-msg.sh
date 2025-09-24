@@ -1,0 +1,1 @@
+LEFTHOOK=0 npx cz --hook
