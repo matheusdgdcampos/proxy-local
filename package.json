@@ -10,7 +10,7 @@
     "generate-certs": "node scripts/generate-certs.js",
     "mock": "ts-node src/mocks/mock-server.ts",
     "lint": "biome check --write",
-    "lint:ci": "biome check --write --staged --changed"
+    "lint:ci": "biome check --write --staged"
   },
   "keywords": [
     "proxy",
@@ -45,6 +45,7 @@
     "@types/uuid": "^9.0.2",
     "css-loader": "^6.8.1",
     "html-webpack-plugin": "^5.5.3",
+    "lefthook": "^1.13.4",
     "nodemon": "^3.0.1",
     "style-loader": "^3.3.3",
     "ts-loader": "^9.4.4",

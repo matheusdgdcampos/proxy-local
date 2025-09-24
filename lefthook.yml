@@ -1,0 +1,6 @@
+pre-commit:
+  jobs:
+    - name: lint
+      run: npm run lint:ci
+      glob: "*.{js,ts,tsx,json,css,html,scss}"
+      stage_fixed: true
