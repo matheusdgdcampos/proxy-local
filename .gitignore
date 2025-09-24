@@ -1,0 +1,61 @@
+# Dependências
+node_modules/
+
+# Build e produção
+dist/
+build/
+out/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dados e banco de dados
+data/
+*.sqlite
+*.db
+
+# Certificados e chaves
+certs/
+*.pem
+*.key
+*.crt
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Cache e arquivos temporários
+.cache/
+.tmp/
+temp/
+*.tmp
+
+# Diretórios do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos do editor/IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Relatórios de erros
+npm-error.log
+
+# Outros arquivos comuns em projetos React
+*.env.*
+*.tgz
+
+# Testes
+jest-coverage/
+coverage/
+# End of Selection

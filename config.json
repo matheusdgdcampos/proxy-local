@@ -1,0 +1,15 @@
+{
+  "proxy": {
+    "target": "http://localhost:8080",
+    "port": 3333,
+    "secure": false
+  },
+  "dashboard": {
+    "port": 3001
+  },
+  "https": {
+    "enabled": false,
+    "certPath": "certs/cert.pem",
+    "keyPath": "certs/key.pem"
+  }
+}
