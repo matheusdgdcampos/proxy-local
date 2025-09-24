@@ -8,7 +8,9 @@
     "build": "tsc && webpack --mode production",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/start-dev.ts",
     "generate-certs": "node scripts/generate-certs.js",
-    "mock": "ts-node src/mocks/mock-server.ts"
+    "mock": "ts-node src/mocks/mock-server.ts",
+    "lint": "biome check --write",
+    "lint:ci": "biome check --write --staged --changed"
   },
   "keywords": [
     "proxy",
@@ -32,6 +34,7 @@
     "winston": "^3.10.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.2.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
