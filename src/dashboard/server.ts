@@ -1,10 +1,10 @@
-import express from "express";
-import path from "path";
-import cors from "cors";
-import morgan from "morgan";
-import bodyParser from "body-parser";
-import { apiRouter } from "./api";
-import { logger } from "../utils/logger";
+import path from 'node:path';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+import express from 'express';
+import morgan from 'morgan';
+import { logger } from '../utils/logger';
+import { apiRouter } from './api';
 
 export class DashboardServer {
   private app: express.Application;
@@ -23,11 +23,11 @@ export class DashboardServer {
 
     // Middleware para logging de requisições HTTP
     this.app.use(
-      morgan("dev", {
+      morgan('dev', {
         stream: {
           write: (message: string) => logger.http(message.trim()),
         },
-      })
+      }),
     );
 
     // Middleware para parsing de JSON
@@ -35,19 +35,19 @@ export class DashboardServer {
     this.app.use(bodyParser.urlencoded({ extended: true }));
 
     // Servir arquivos estáticos do diretório public
-    this.app.use(express.static(path.join(process.cwd(), "public")));
+    this.app.use(express.static(path.join(process.cwd(), 'public')));
 
     // Servir arquivos estáticos do diretório dist (build JS)
-    this.app.use("/dist", express.static(path.join(process.cwd(), "dist")));
+    this.app.use('/dist', express.static(path.join(process.cwd(), 'dist')));
   }
 
   private configureRoutes(): void {
     // Rotas da API
-    this.app.use("/api", apiRouter);
+    this.app.use('/api', apiRouter);
 
     // Rota para o dashboard (SPA)
-    this.app.get("*", (req, res) => {
-      res.sendFile(path.join(process.cwd(), "public", "index.html"));
+    this.app.get('*', (_req, res) => {
+      res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
     });
   }
 

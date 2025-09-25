@@ -1,8 +1,8 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import RequestLogs from "./RequestLogs";
-import MockConfigs from "./MockConfigs";
-import Settings from "./Settings";
+import type React from 'react';
+import { Link, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import MockConfigs from './MockConfigs';
+import RequestLogs from './RequestLogs';
+import Settings from './Settings';
 
 const App: React.FC = () => {
   return (

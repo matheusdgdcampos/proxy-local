@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import type React from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface RequestLog {
   id: string;
@@ -20,27 +21,27 @@ const RequestLogs: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<RequestLog | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [createMockSuccess, setCreateMockSuccess] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"request" | "response">("request");
+  const [activeTab, setActiveTab] = useState<'request' | 'response'>('request');
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/logs");
+      const response = await fetch('/api/logs');
       const data = await response.json();
 
       if (data.success) {
         setLogs(data.data);
         setError(null);
       } else {
-        setError(data.error || "Falha ao carregar logs");
+        setError(data.error || 'Falha ao carregar logs');
       }
     } catch (error) {
-      setError("Erro ao conectar com o servidor");
-      console.error("Error fetching logs:", error);
+      setError('Erro ao conectar com o servidor');
+      console.error('Error fetching logs:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchLogs();
@@ -48,7 +49,7 @@ const RequestLogs: React.FC = () => {
     // Atualiza os logs a cada 5 segundos
     const interval = setInterval(fetchLogs, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchLogs]);
 
   const viewLogDetails = async (id: string) => {
     try {
@@ -59,13 +60,13 @@ const RequestLogs: React.FC = () => {
         setSelectedLog(data.data);
         setShowModal(true);
         setCreateMockSuccess(false);
-        setActiveTab("request");
+        setActiveTab('request');
       } else {
-        setError(data.error || "Falha ao carregar detalhes do log");
+        setError(data.error || 'Falha ao carregar detalhes do log');
       }
     } catch (error) {
-      setError("Erro ao conectar com o servidor");
-      console.error("Error fetching log details:", error);
+      setError('Erro ao conectar com o servidor');
+      console.error('Error fetching log details:', error);
     }
   };
 
@@ -74,18 +75,18 @@ const RequestLogs: React.FC = () => {
 
     try {
       const response = await fetch(`/api/logs/${selectedLog.id}/create-mock`, {
-        method: "POST",
+        method: 'POST',
       });
 
       const data = await response.json();
       if (data.success) {
         setCreateMockSuccess(true);
       } else {
-        setError(data.error || "Falha ao criar mock");
+        setError(data.error || 'Falha ao criar mock');
       }
     } catch (error) {
-      setError("Erro ao conectar com o servidor");
-      console.error("Error creating mock:", error);
+      setError('Erro ao conectar com o servidor');
+      console.error('Error creating mock:', error);
     }
   };
 
@@ -94,10 +95,10 @@ const RequestLogs: React.FC = () => {
   };
 
   const getStatusColor = (status?: number) => {
-    if (!status) return "badge-warning";
-    if (status >= 200 && status < 300) return "badge-success";
-    if (status >= 400) return "badge-danger";
-    return "badge-info";
+    if (!status) return 'badge-warning';
+    if (status >= 200 && status < 300) return 'badge-success';
+    if (status >= 400) return 'badge-danger';
+    return 'badge-info';
   };
 
   return (
@@ -105,7 +106,11 @@ const RequestLogs: React.FC = () => {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">Logs de Requisições</h2>
-          <button className="btn btn-secondary" onClick={fetchLogs}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={fetchLogs}
+          >
             Atualizar
           </button>
         </div>
@@ -140,14 +145,14 @@ const RequestLogs: React.FC = () => {
                 logs.map((log) => (
                   <tr key={log.id}>
                     <td>{log.method}</td>
-                    <td className="truncate" style={{ maxWidth: "300px" }}>
+                    <td className="truncate" style={{ maxWidth: '300px' }}>
                       {log.url}
                     </td>
                     <td>
                       {log.responseStatus ? (
                         <span
                           className={`badge ${getStatusColor(
-                            log.responseStatus
+                            log.responseStatus,
                           )}`}
                         >
                           {log.responseStatus}
@@ -156,10 +161,11 @@ const RequestLogs: React.FC = () => {
                         <span className="badge badge-warning">Pendente</span>
                       )}
                     </td>
-                    <td>{log.responseTime ? `${log.responseTime}ms` : "-"}</td>
+                    <td>{log.responseTime ? `${log.responseTime}ms` : '-'}</td>
                     <td>{formatDate(log.timestamp)}</td>
                     <td>
                       <button
+                        type="button"
                         className="btn btn-sm"
                         onClick={() => viewLogDetails(log.id)}
                       >
@@ -175,11 +181,20 @@ const RequestLogs: React.FC = () => {
       </div>
 
       {showModal && selectedLog && (
-        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="modal-backdrop"
+          onClick={() => setShowModal(false)}
+        >
+          <button
+            type="button"
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h3 className="modal-title">Detalhes da Requisição</h3>
               <button
+                type="button"
                 className="modal-close"
                 onClick={() => setShowModal(false)}
               >
@@ -194,26 +209,28 @@ const RequestLogs: React.FC = () => {
               )}
 
               <div className="tabs mb-3">
-                <div
-                  className={`tab ${activeTab === "request" ? "active" : ""}`}
-                  onClick={() => setActiveTab("request")}
+                <button
+                  type="button"
+                  className={`tab ${activeTab === 'request' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('request')}
                 >
                   Requisição
-                </div>
-                <div
-                  className={`tab ${activeTab === "response" ? "active" : ""}`}
-                  onClick={() => setActiveTab("response")}
+                </button>
+                <button
+                  type="button"
+                  className={`tab ${activeTab === 'response' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('response')}
                 >
                   Resposta
-                </div>
+                </button>
               </div>
 
-              {activeTab === "request" ? (
+              {activeTab === 'request' ? (
                 <>
                   <div className="form-group">
                     <div className="d-flex justify-between">
                       <div>
-                        <span className="font-bold">{selectedLog.method}</span>{" "}
+                        <span className="font-bold">{selectedLog.method}</span>{' '}
                         {selectedLog.url}
                       </div>
                       <div>{formatDate(selectedLog.timestamp)}</div>
@@ -221,7 +238,9 @@ const RequestLogs: React.FC = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Headers</label>
+                    <label className="form-label" htmlFor="headers">
+                      Headers
+                    </label>
                     <pre className="code-block">
                       {JSON.stringify(JSON.parse(selectedLog.headers), null, 2)}
                     </pre>
@@ -229,14 +248,16 @@ const RequestLogs: React.FC = () => {
 
                   {selectedLog.body && (
                     <div className="form-group">
-                      <label className="form-label">Body</label>
+                      <label className="form-label" htmlFor="body">
+                        Body
+                      </label>
                       <pre className="code-block">
-                        {typeof selectedLog.body === "string" &&
-                        selectedLog.body.startsWith("{")
+                        {typeof selectedLog.body === 'string' &&
+                        selectedLog.body.startsWith('{')
                           ? JSON.stringify(
                               JSON.parse(selectedLog.body),
                               null,
-                              2
+                              2,
                             )
                           : selectedLog.body}
                       </pre>
@@ -244,67 +265,72 @@ const RequestLogs: React.FC = () => {
                   )}
                 </>
               ) : (
-                <>
-                  {selectedLog.responseStatus && (
-                    <>
-                      <div className="form-group">
-                        <div className="d-flex justify-between">
-                          <div>
-                            <span
-                              className={`badge ${getStatusColor(
-                                selectedLog.responseStatus
-                              )}`}
-                            >
-                              Status: {selectedLog.responseStatus}
-                            </span>
-                          </div>
-                          <div>
-                            Tempo de resposta: {selectedLog.responseTime}ms
-                          </div>
+                selectedLog.responseStatus && (
+                  <>
+                    <div className="form-group">
+                      <div className="d-flex justify-between">
+                        <div>
+                          <span
+                            className={`badge ${getStatusColor(
+                              selectedLog.responseStatus,
+                            )}`}
+                          >
+                            Status: {selectedLog.responseStatus}
+                          </span>
+                        </div>
+                        <div>
+                          Tempo de resposta: {selectedLog.responseTime}ms
                         </div>
                       </div>
+                    </div>
 
-                      {selectedLog.responseHeaders && (
-                        <div className="form-group">
-                          <label className="form-label">
-                            Headers da Resposta
-                          </label>
-                          <pre className="code-block">
-                            {JSON.stringify(
-                              JSON.parse(selectedLog.responseHeaders || "{}"),
-                              null,
-                              2
-                            )}
-                          </pre>
-                        </div>
-                      )}
+                    {selectedLog.responseHeaders && (
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="responseHeaders">
+                          Headers da Resposta
+                        </label>
+                        <pre className="code-block">
+                          {JSON.stringify(
+                            JSON.parse(selectedLog.responseHeaders || '{}'),
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </div>
+                    )}
 
-                      {selectedLog.responseBody && (
-                        <div className="form-group">
-                          <label className="form-label">Body da Resposta</label>
-                          <pre className="code-block">
-                            {typeof selectedLog.responseBody === "string" &&
-                            selectedLog.responseBody.startsWith("{")
-                              ? JSON.stringify(
-                                  JSON.parse(selectedLog.responseBody),
-                                  null,
-                                  2
-                                )
-                              : selectedLog.responseBody}
-                          </pre>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </>
+                    {selectedLog.responseBody && (
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="responseBody">
+                          Body da Resposta
+                        </label>
+                        <pre className="code-block">
+                          {typeof selectedLog.responseBody === 'string' &&
+                          selectedLog.responseBody.startsWith('{')
+                            ? JSON.stringify(
+                                JSON.parse(selectedLog.responseBody),
+                                null,
+                                2,
+                              )
+                            : selectedLog.responseBody}
+                        </pre>
+                      </div>
+                    )}
+                  </>
+                )
               )}
             </div>
             <div className="modal-footer">
-              <button className="btn" onClick={() => setShowModal(false)}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowModal(false)}
+              >
                 Fechar
               </button>
               {selectedLog.responseStatus && (
                 <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={createMockFromLog}
                   disabled={createMockSuccess}
@@ -313,8 +339,8 @@ const RequestLogs: React.FC = () => {
                 </button>
               )}
             </div>
-          </div>
-        </div>
+          </button>
+        </button>
       )}
     </div>
   );

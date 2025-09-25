@@ -1,6 +1,6 @@
 {
   "proxy": {
-    "target": "http://localhost:8080",
+    "target": "https://brasilapi.com.br",
     "port": 3333,
     "secure": false
   },

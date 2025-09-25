@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { AppConfig } from "../../config";
+import type React from 'react';
+import { useEffect, useState } from 'react';
+import type { AppConfig } from '../../config';
 
 const Settings: React.FC = () => {
-  const [proxyTarget, setProxyTarget] = useState<string>("");
+  const [proxyTarget, setProxyTarget] = useState<string>('');
   const [proxyPort, setProxyPort] = useState<number>(0);
   const [dashboardPort, setDashboardPort] = useState<number>(0);
   const [useHttps, setUseHttps] = useState<boolean>(false);
   const [status, setStatus] = useState<{
-    type: "success" | "error" | null;
+    type: 'success' | 'error' | null;
     message: string;
-  }>({ type: null, message: "" });
+  }>({ type: null, message: '' });
 
   // Carrega configuração inicial do backend
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const response = await fetch("/api/config");
+        const response = await fetch('/api/config');
         const result = await response.json();
         if (result.success && result.data) {
           const config: AppConfig = result.data;
@@ -25,15 +26,15 @@ const Settings: React.FC = () => {
           setUseHttps(config.https.enabled);
         } else {
           setStatus({
-            type: "error",
-            message: "Falha ao carregar configuração do servidor",
+            type: 'error',
+            message: 'Falha ao carregar configuração do servidor',
           });
         }
       } catch (error) {
         console.error(error);
         setStatus({
-          type: "error",
-          message: "Erro ao carregar configuração do servidor",
+          type: 'error',
+          message: 'Erro ao carregar configuração do servidor',
         });
       }
     }
@@ -53,29 +54,29 @@ const Settings: React.FC = () => {
         },
         https: {
           enabled: useHttps,
-          certPath: "certs/cert.pem",
-          keyPath: "certs/key.pem",
+          certPath: 'certs/cert.pem',
+          keyPath: 'certs/key.pem',
         },
       };
 
-      const response = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig),
       });
       const result = await response.json();
       if (result.success) {
         setStatus({
-          type: "success",
+          type: 'success',
           message:
-            "Configurações salvas com sucesso! (Reinicie o servidor para aplicar as alterações)",
+            'Configurações salvas com sucesso! (Reinicie o servidor para aplicar as alterações)',
         });
       } else {
-        setStatus({ type: "error", message: result.error || "Erro ao salvar" });
+        setStatus({ type: 'error', message: result.error || 'Erro ao salvar' });
       }
     } catch (error) {
       console.error(error);
-      setStatus({ type: "error", message: "Erro ao salvar configurações" });
+      setStatus({ type: 'error', message: 'Erro ao salvar configurações' });
     }
   };
 
@@ -89,7 +90,7 @@ const Settings: React.FC = () => {
         {status.type && (
           <div
             className={`alert ${
-              status.type === "success" ? "alert-success" : "alert-danger"
+              status.type === 'success' ? 'alert-success' : 'alert-danger'
             }`}
           >
             {status.message}
@@ -103,7 +104,9 @@ const Settings: React.FC = () => {
           }}
         >
           <div className="form-group">
-            <label className="form-label">URL de Destino do Proxy</label>
+            <label className="form-label" htmlFor="proxyTarget">
+              URL de Destino do Proxy
+            </label>
             <input
               type="text"
               className="form-control"
@@ -118,12 +121,14 @@ const Settings: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Porta do Proxy</label>
+            <label className="form-label" htmlFor="proxyPort">
+              Porta do Proxy
+            </label>
             <input
               type="number"
               className="form-control"
               value={proxyPort}
-              onChange={(e) => setProxyPort(parseInt(e.target.value))}
+              onChange={(e) => setProxyPort(parseInt(e.target.value, 10))}
               min={1}
               max={65535}
             />
@@ -133,12 +138,14 @@ const Settings: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Porta do Dashboard</label>
+            <label className="form-label" htmlFor="dashboardPort">
+              Porta do Dashboard
+            </label>
             <input
               type="number"
               className="form-control"
               value={dashboardPort}
-              onChange={(e) => setDashboardPort(parseInt(e.target.value))}
+              onChange={(e) => setDashboardPort(parseInt(e.target.value, 10))}
               min={1}
               max={65535}
             />
@@ -154,7 +161,7 @@ const Settings: React.FC = () => {
                 checked={useHttps}
                 onChange={(e) => setUseHttps(e.target.checked)}
               />
-              <span style={{ marginLeft: "10px" }}>
+              <span style={{ marginLeft: '10px' }}>
                 Usar HTTPS (requer certificado)
               </span>
             </label>

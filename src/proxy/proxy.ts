@@ -1,8 +1,19 @@
-import { createProxyMiddleware, RequestHandler } from "http-proxy-middleware";
-import { Request, Response } from "express";
-import { dbService, RequestLog } from "../db/database";
-import { mockEngine } from "../mocks/mockEngine";
-import { logger } from "../utils/logger";
+import type { ClientRequest } from 'node:http';
+import type { Request, Response } from 'express';
+import {
+  createProxyMiddleware,
+  type RequestHandler,
+} from 'http-proxy-middleware';
+import { dbService, type RequestLog } from '../db/database';
+import { mockEngine } from '../mocks/mockEngine';
+import { logger } from '../utils/logger';
+
+// Interface para estender Request com propriedades customizadas
+interface ExtendedRequest extends Request {
+  proxyStartTime?: number;
+  originalBody?: string;
+  requestLogId?: string;
+}
 
 export interface ProxyConfig {
   target: string;
@@ -25,10 +36,10 @@ export class ProxyService {
     if (!url) return false;
 
     const IGNORED_PATHS = [
-      "/favicon.ico",
-      "/@vite/client",
-      "/sockjs-node",
-      "/__webpack_hmr",
+      '/favicon.ico',
+      '/@vite/client',
+      '/sockjs-node',
+      '/__webpack_hmr',
     ];
 
     const STATIC_FILE_REGEX = /\.(css|js|png|jpg|jpeg|gif|svg|ico|map)$/i;
@@ -45,40 +56,52 @@ export class ProxyService {
       changeOrigin: true,
       secure: this.config.secure ?? false,
       pathRewrite: this.config.pathRewrite,
-      logLevel: "silent",
+      logLevel: 'silent',
 
       onProxyReq: (proxyReq, req, res) => {
-        this.handleProxyRequest(proxyReq, req as Request, res as Response);
+        this.handleProxyRequest(
+          proxyReq,
+          req as ExtendedRequest,
+          res as Response,
+        );
       },
 
       onProxyRes: (proxyRes, req, res) => {
-        this.handleProxyResponse(proxyRes, req as Request, res as Response);
+        this.handleProxyResponse(
+          proxyRes,
+          req as ExtendedRequest,
+          res as Response,
+        );
       },
 
-      onError: (err, req, res) => {
+      onError: (err, _req, res) => {
         logger.error(`Proxy error: ${err.message}`, { error: err });
         if (!res.headersSent) {
           (res as Response)
             .status(500)
-            .json({ error: "Proxy error", message: err.message });
+            .json({ error: 'Proxy error', message: err.message });
         }
       },
     });
   }
 
-  private handleProxyRequest(proxyReq: any, req: Request, res: Response): void {
-    let requestBody = "";
+  private handleProxyRequest(
+    proxyReq: ClientRequest,
+    req: ExtendedRequest,
+    res: Response,
+  ): void {
+    let requestBody = '';
     if (req.body) {
       requestBody =
-        typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+        typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
       if (requestBody) {
-        proxyReq.setHeader("Content-Length", Buffer.byteLength(requestBody));
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(requestBody));
         proxyReq.write(requestBody);
       }
     }
 
-    (req as any).proxyStartTime = Date.now();
-    (req as any).originalBody = requestBody;
+    req.proxyStartTime = Date.now();
+    req.originalBody = requestBody;
 
     // Se houver mock, retorna ele imediatamente
     const mockResponse = mockEngine.findMockForRequest(req.url, req.method);
@@ -86,7 +109,7 @@ export class ProxyService {
       logger.info(`Using mock for ${req.method} ${req.url}`);
       proxyReq.abort();
 
-      const requestLog: Omit<RequestLog, "id"> = {
+      const requestLog: Omit<RequestLog, 'id'> = {
         url: req.url,
         method: req.method,
         headers: JSON.stringify(req.headers),
@@ -101,9 +124,9 @@ export class ProxyService {
       dbService.saveRequestLog(requestLog);
 
       const mockHeaders = JSON.parse(mockResponse.headers);
-      Object.keys(mockHeaders).forEach((key) =>
-        res.setHeader(key, mockHeaders[key])
-      );
+      Object.keys(mockHeaders).forEach((key) => {
+        res.setHeader(key, mockHeaders[key]);
+      });
       res.status(mockResponse.statusCode).send(mockResponse.body);
       return;
     }
@@ -112,7 +135,7 @@ export class ProxyService {
     if (this.shouldLogRequest(req.url)) {
       logger.info(`Proxying ${req.method} ${req.url} to ${this.config.target}`);
 
-      const requestLog: Omit<RequestLog, "id"> = {
+      const requestLog: Omit<RequestLog, 'id'> = {
         url: req.url,
         method: req.method,
         headers: JSON.stringify(req.headers),
@@ -121,34 +144,38 @@ export class ProxyService {
       };
 
       const logId = dbService.saveRequestLog(requestLog);
-      (req as any).requestLogId = logId;
+      req.requestLogId = logId;
     }
   }
 
   private handleProxyResponse(
-    proxyRes: any,
-    req: Request,
-    res: Response
+    proxyRes: {
+      statusCode?: number;
+      headers: Record<string, string | string[] | undefined>;
+      on: (event: string, callback: (chunk: Buffer) => void) => void;
+    },
+    req: ExtendedRequest,
+    _res: Response,
   ): void {
-    const requestLogId = (req as any).requestLogId;
+    const requestLogId = req.requestLogId;
     if (!requestLogId) return;
 
-    const startTime = (req as any).proxyStartTime || Date.now();
+    const startTime = req.proxyStartTime || Date.now();
     const responseTime = Date.now() - startTime;
 
-    let responseBody = "";
-    proxyRes.on("data", (chunk: Buffer) => {
-      responseBody += chunk.toString("utf8");
+    let responseBody = '';
+    proxyRes.on('data', (chunk: Buffer) => {
+      responseBody += chunk.toString('utf8');
     });
 
-    proxyRes.on("end", () => {
+    proxyRes.on('end', () => {
       // Sempre atualiza o log com a resposta, independente de mock ou gravação
       dbService.updateRequestLogWithResponse(
         requestLogId,
-        proxyRes.statusCode,
+        proxyRes.statusCode || 200,
         JSON.stringify(proxyRes.headers),
         responseBody,
-        responseTime
+        responseTime,
       );
     });
   }

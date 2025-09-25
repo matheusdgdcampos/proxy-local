@@ -1,6 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import Database from 'better-sqlite3';
-import fs from 'fs';
-import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 // Definição dos tipos
@@ -107,7 +107,7 @@ class DatabaseService {
       log.responseStatus || null,
       log.responseHeaders || null,
       log.responseBody || null,
-      log.responseTime || null
+      log.responseTime || null,
     );
 
     return id;
@@ -118,7 +118,7 @@ class DatabaseService {
     responseStatus: number,
     responseHeaders: string,
     responseBody: string,
-    responseTime: number
+    responseTime: number,
   ): void {
     const stmt = this.db.prepare(`
       UPDATE request_logs 
@@ -161,10 +161,12 @@ class DatabaseService {
   }
 
   // Métodos para configurações de mock
-  saveMockConfig(config: Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>): string {
+  saveMockConfig(
+    config: Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>,
+  ): string {
     const id = uuidv4();
     const now = Date.now();
-    
+
     const stmt = this.db.prepare(`
       INSERT INTO mock_configs (
         id, url, method, status_code, headers, body, active, created_at, updated_at
@@ -180,68 +182,71 @@ class DatabaseService {
       config.body || '',
       config.active ? 1 : 0,
       now,
-      now
+      now,
     );
 
     return id;
   }
 
-  updateMockConfig(id: string, config: Partial<Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>>): boolean {
+  updateMockConfig(
+    id: string,
+    config: Partial<Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): boolean {
     const now = Date.now();
-    
+
     // Construir a query dinamicamente com base nos campos fornecidos
     const updateFields: string[] = [];
-    const params: any[] = [];
+    const params: Array<string | number | boolean> = [];
 
     if (config.url !== undefined) {
       updateFields.push('url = ?');
       params.push(config.url);
     }
-    
+
     if (config.method !== undefined) {
       updateFields.push('method = ?');
       params.push(config.method);
     }
-    
+
     if (config.statusCode !== undefined) {
       updateFields.push('status_code = ?');
       params.push(config.statusCode);
     }
-    
+
     if (config.headers !== undefined) {
       updateFields.push('headers = ?');
       params.push(config.headers);
     }
-    
+
     if (config.body !== undefined) {
       updateFields.push('body = ?');
       params.push(config.body);
     }
-    
+
     if (config.active !== undefined) {
       updateFields.push('active = ?');
       params.push(config.active ? 1 : 0);
     }
-    
+
     updateFields.push('updated_at = ?');
     params.push(now);
-    
+
     // Adicionar o ID no final dos parâmetros
     params.push(id);
-    
+
     if (updateFields.length === 0) {
       return false;
     }
-    
+
     const query = `
       UPDATE mock_configs 
       SET ${updateFields.join(', ')}
       WHERE id = ?
     `;
-    
+
     const stmt = this.db.prepare(query);
     const result = stmt.run(...params);
-    
+
     return result.changes > 0;
   }
 
@@ -256,13 +261,13 @@ class DatabaseService {
         updated_at as updatedAt
       FROM mock_configs
     `;
-    
+
     if (active !== undefined) {
       query += ` WHERE active = ${active ? 1 : 0}`;
     }
-    
+
     query += ' ORDER BY created_at DESC';
-    
+
     const stmt = this.db.prepare(query);
     return stmt.all() as MockConfig[];
   }

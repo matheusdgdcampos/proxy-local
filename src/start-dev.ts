@@ -1,19 +1,18 @@
-import express from "express";
-import http from "http";
-import https from "https";
-import fs from "fs";
-import path from "path";
-import { config } from "./config";
-import { createProxyService } from "./proxy/proxy";
-import { createDashboardServer } from "./dashboard/server";
-import { logger } from "./utils/logger";
+import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
+import express from 'express';
+import { config } from './config';
+import { createDashboardServer } from './dashboard/server';
+import { createProxyService } from './proxy/proxy';
+import { logger } from './utils/logger';
 
 async function startServer() {
-  logger.info("Iniciando TS Mock Proxy...");
+  logger.info('Iniciando TS Mock Proxy...');
 
   try {
     // Inicializa o motor de mocks
-    logger.info("Motor de mocks inicializado");
+    logger.info('Motor de mocks inicializado');
 
     // Configura o servidor proxy
     const app = express();
@@ -27,7 +26,7 @@ async function startServer() {
     app.use(proxyService.getMiddleware());
 
     // Cria o servidor HTTP ou HTTPS para o proxy
-    let proxyServer;
+    let proxyServer: http.Server | https.Server;
     if (config.https.enabled) {
       try {
         const httpsOptions = {
@@ -35,11 +34,11 @@ async function startServer() {
           cert: fs.readFileSync(config.https.certPath),
         };
         proxyServer = https.createServer(httpsOptions, app);
-        logger.info("Servidor proxy HTTPS configurado");
+        logger.info('Servidor proxy HTTPS configurado');
       } catch (error) {
         logger.error(
-          "Erro ao carregar certificados HTTPS. Usando HTTP como fallback.",
-          { error }
+          'Erro ao carregar certificados HTTPS. Usando HTTP como fallback.',
+          { error },
         );
         proxyServer = http.createServer(app);
       }
@@ -51,8 +50,8 @@ async function startServer() {
     proxyServer.listen(config.proxy.port, () => {
       logger.info(
         `Servidor proxy rodando em ${
-          config.https.enabled ? "https" : "http"
-        }://localhost:${config.proxy.port}`
+          config.https.enabled ? 'https' : 'http'
+        }://localhost:${config.proxy.port}`,
       );
     });
 
@@ -61,20 +60,20 @@ async function startServer() {
     dashboardServer.start();
 
     logger.info(
-      `Dashboard disponível em http://localhost:${config.dashboard.port}`
+      `Dashboard disponível em http://localhost:${config.dashboard.port}`,
     );
-    logger.info("TS Mock Proxy iniciado com sucesso!");
+    logger.info('TS Mock Proxy iniciado com sucesso!');
 
-    console.log("\n=== TS Mock Proxy ===");
+    console.log('\n=== TS Mock Proxy ===');
     console.log(
-      `Proxy: ${config.https.enabled ? "https" : "http"}://localhost:${
+      `Proxy: ${config.https.enabled ? 'https' : 'http'}://localhost:${
         config.proxy.port
-      } -> ${config.proxy.target}`
+      } -> ${config.proxy.target}`,
     );
     console.log(`Dashboard: http://localhost:${config.dashboard.port}`);
-    console.log("====================\n");
+    console.log('====================\n');
   } catch (error) {
-    logger.error("Erro ao iniciar o servidor:", { error });
+    logger.error('Erro ao iniciar o servidor:', { error });
     process.exit(1);
   }
 }

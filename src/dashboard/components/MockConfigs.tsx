@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import type React from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface MockConfig {
   id: string;
@@ -27,15 +28,15 @@ const MockConfigs: React.FC = () => {
     statusCode: 200,
     headers: '{}',
     body: '',
-    active: true
+    active: true,
   });
 
-  const fetchMocks = async () => {
+  const fetchMocks = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/mocks');
       const data = await response.json();
-      
+
       if (data.success) {
         setMocks(data.data);
         setError(null);
@@ -48,20 +49,24 @@ const MockConfigs: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMocks();
-  }, []);
+  }, [fetchMocks]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
+      setFormData((prev) => ({ ...prev, [name]: checked }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -72,7 +77,7 @@ const MockConfigs: React.FC = () => {
       statusCode: 200,
       headers: '{}',
       body: '',
-      active: true
+      active: true,
     });
     setIsEditing(false);
     setShowModal(true);
@@ -85,7 +90,7 @@ const MockConfigs: React.FC = () => {
       statusCode: mock.statusCode,
       headers: mock.headers,
       body: mock.body,
-      active: mock.active
+      active: mock.active,
     });
     setSelectedMock(mock);
     setIsEditing(true);
@@ -94,10 +99,10 @@ const MockConfigs: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      let response;
-      
+      let response: Response;
+
       if (isEditing && selectedMock) {
         // Atualizar mock existente
         response = await fetch(`/api/mocks/${selectedMock.id}`, {
@@ -117,7 +122,7 @@ const MockConfigs: React.FC = () => {
           body: JSON.stringify(formData),
         });
       }
-      
+
       const data = await response.json();
       if (data.success) {
         setShowModal(false);
@@ -133,12 +138,12 @@ const MockConfigs: React.FC = () => {
 
   const deleteMock = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este mock?')) return;
-    
+
     try {
       const response = await fetch(`/api/mocks/${id}`, {
         method: 'DELETE',
       });
-      
+
       const data = await response.json();
       if (data.success) {
         fetchMocks();
@@ -160,7 +165,7 @@ const MockConfigs: React.FC = () => {
         },
         body: JSON.stringify({ active: !mock.active }),
       });
-      
+
       const data = await response.json();
       if (data.success) {
         fetchMocks();
@@ -183,17 +188,22 @@ const MockConfigs: React.FC = () => {
         <div className="card-header">
           <h2 className="card-title">Configurações de Mock</h2>
           <div>
-            <button className="btn btn-secondary" onClick={fetchMocks} style={{ marginRight: '10px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={fetchMocks}
+              style={{ marginRight: '10px' }}
+            >
               Atualizar
             </button>
-            <button className="btn" onClick={openCreateModal}>
+            <button type="button" className="btn" onClick={openCreateModal}>
               Novo Mock
             </button>
           </div>
         </div>
-        
+
         {error && <div className="alert alert-danger">{error}</div>}
-        
+
         {loading ? (
           <div className="text-center p-3">
             <div className="spinner"></div>
@@ -214,34 +224,41 @@ const MockConfigs: React.FC = () => {
             <tbody>
               {mocks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center">Nenhum mock encontrado</td>
+                  <td colSpan={6} className="text-center">
+                    Nenhum mock encontrado
+                  </td>
                 </tr>
               ) : (
-                mocks.map(mock => (
+                mocks.map((mock) => (
                   <tr key={mock.id}>
                     <td>
-                      <div 
+                      <button
+                        type="button"
                         className={`badge ${mock.active ? 'badge-success' : 'badge-danger'}`}
                         style={{ cursor: 'pointer' }}
                         onClick={() => toggleMockStatus(mock)}
                       >
                         {mock.active ? 'Ativo' : 'Inativo'}
-                      </div>
+                      </button>
                     </td>
                     <td>{mock.method}</td>
-                    <td className="truncate" style={{ maxWidth: '300px' }}>{mock.url}</td>
+                    <td className="truncate" style={{ maxWidth: '300px' }}>
+                      {mock.url}
+                    </td>
                     <td>{mock.statusCode}</td>
                     <td>{formatDate(mock.updatedAt)}</td>
                     <td>
-                      <button 
-                        className="btn btn-sm" 
+                      <button
+                        type="button"
+                        className="btn btn-sm"
                         onClick={() => openEditModal(mock)}
                         style={{ marginRight: '5px' }}
                       >
                         Editar
                       </button>
-                      <button 
-                        className="btn btn-sm btn-danger" 
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger"
                         onClick={() => deleteMock(mock.id)}
                       >
                         Excluir
@@ -256,16 +273,34 @@ const MockConfigs: React.FC = () => {
       </div>
 
       {showModal && (
-        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <button
+          type="button"
+          className="modal-backdrop"
+          onClick={() => setShowModal(false)}
+        >
+          <button
+            type="button"
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
-              <h3 className="modal-title">{isEditing ? 'Editar Mock' : 'Novo Mock'}</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
+              <h3 className="modal-title">
+                {isEditing ? 'Editar Mock' : 'Novo Mock'}
+              </h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowModal(false)}
+              >
+                &times;
+              </button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                  <label className="form-label">URL</label>
+                  <label className="form-label" htmlFor="url">
+                    URL
+                  </label>
                   <input
                     type="text"
                     name="url"
@@ -275,9 +310,11 @@ const MockConfigs: React.FC = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="form-group">
-                  <label className="form-label">Método</label>
+                  <label className="form-label" htmlFor="method">
+                    Método
+                  </label>
                   <select
                     name="method"
                     className="form-control"
@@ -292,9 +329,11 @@ const MockConfigs: React.FC = () => {
                     <option value="PATCH">PATCH</option>
                   </select>
                 </div>
-                
+
                 <div className="form-group">
-                  <label className="form-label">Código de Status</label>
+                  <label className="form-label" htmlFor="statusCode">
+                    Código de Status
+                  </label>
                   <input
                     type="number"
                     name="statusCode"
@@ -306,9 +345,11 @@ const MockConfigs: React.FC = () => {
                     max="599"
                   />
                 </div>
-                
+
                 <div className="form-group">
-                  <label className="form-label">Headers (JSON)</label>
+                  <label className="form-label" htmlFor="headers">
+                    Headers (JSON)
+                  </label>
                   <textarea
                     name="headers"
                     className="form-control"
@@ -317,9 +358,11 @@ const MockConfigs: React.FC = () => {
                     rows={3}
                   />
                 </div>
-                
+
                 <div className="form-group">
-                  <label className="form-label">Body</label>
+                  <label className="form-label" htmlFor="body">
+                    Body
+                  </label>
                   <textarea
                     name="body"
                     className="form-control"
@@ -328,7 +371,7 @@ const MockConfigs: React.FC = () => {
                     rows={5}
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-check">
                     <input
@@ -340,9 +383,13 @@ const MockConfigs: React.FC = () => {
                     <span style={{ marginLeft: '10px' }}>Ativo</span>
                   </label>
                 </div>
-                
+
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger" onClick={() => setShowModal(false)}>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => setShowModal(false)}
+                  >
                     Cancelar
                   </button>
                   <button type="submit" className="btn">
@@ -351,8 +398,8 @@ const MockConfigs: React.FC = () => {
                 </div>
               </form>
             </div>
-          </div>
-        </div>
+          </button>
+        </button>
       )}
     </div>
   );

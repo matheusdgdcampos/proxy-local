@@ -1,9 +1,9 @@
-import { dbService, MockConfig } from "../db/database";
-import { logger } from "../utils/logger";
+import { dbService, type MockConfig } from '../db/database';
+import { logger } from '../utils/logger';
 
 class MockEngine {
   constructor() {
-    logger.info("Mock engine initialized");
+    logger.info('Mock engine initialized');
   }
 
   /**
@@ -13,7 +13,7 @@ class MockEngine {
     try {
       return dbService.findMockConfigForRequest(url, method);
     } catch (error) {
-      logger.error("Error finding mock for request", { error, url, method });
+      logger.error('Error finding mock for request', { error, url, method });
       return null;
     }
   }
@@ -22,7 +22,7 @@ class MockEngine {
    * Grava um novo mock no banco de dados (sempre grava)
    */
   recordMock(
-    mockData: Omit<MockConfig, "id" | "createdAt" | "updatedAt">
+    mockData: Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>,
   ): string | null {
     try {
       const id = dbService.saveMockConfig(mockData);
@@ -32,7 +32,7 @@ class MockEngine {
       });
       return id;
     } catch (error) {
-      logger.error("Error recording mock", { error, mockData });
+      logger.error('Error recording mock', { error, mockData });
       return null;
     }
   }
@@ -42,7 +42,7 @@ class MockEngine {
    */
   updateMock(
     id: string,
-    mockData: Partial<Omit<MockConfig, "id" | "createdAt" | "updatedAt">>
+    mockData: Partial<Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>>,
   ): boolean {
     try {
       const result = dbService.updateMockConfig(id, mockData);
@@ -53,7 +53,7 @@ class MockEngine {
       }
       return result;
     } catch (error) {
-      logger.error("Error updating mock", { error, id, mockData });
+      logger.error('Error updating mock', { error, id, mockData });
       return false;
     }
   }
@@ -71,7 +71,7 @@ class MockEngine {
       }
       return result;
     } catch (error) {
-      logger.error("Error deleting mock", { error, id });
+      logger.error('Error deleting mock', { error, id });
       return false;
     }
   }
@@ -83,7 +83,7 @@ class MockEngine {
     try {
       return dbService.getMockConfigs(activeOnly ? true : undefined);
     } catch (error) {
-      logger.error("Error getting all mocks", { error, activeOnly });
+      logger.error('Error getting all mocks', { error, activeOnly });
       return [];
     }
   }
@@ -95,7 +95,7 @@ class MockEngine {
     try {
       return dbService.getMockConfigById(id);
     } catch (error) {
-      logger.error("Error getting mock by ID", { error, id });
+      logger.error('Error getting mock by ID', { error, id });
       return null;
     }
   }
@@ -109,8 +109,8 @@ class MockEngine {
 
       if (!requestLog || !requestLog.responseStatus) {
         logger.warn(
-          "Cannot create mock: Request log not found or missing response data",
-          { requestLogId }
+          'Cannot create mock: Request log not found or missing response data',
+          { requestLogId },
         );
         return null;
       }
@@ -119,14 +119,14 @@ class MockEngine {
         url: requestLog.url,
         method: requestLog.method,
         statusCode: requestLog.responseStatus,
-        headers: requestLog.responseHeaders || "{}",
-        body: requestLog.responseBody || "",
+        headers: requestLog.responseHeaders || '{}',
+        body: requestLog.responseBody || '',
         active: true,
       };
 
       return this.recordMock(mockData);
     } catch (error) {
-      logger.error("Error creating mock from request log", {
+      logger.error('Error creating mock from request log', {
         error,
         requestLogId,
       });
