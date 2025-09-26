@@ -1,17 +1,19 @@
 pre-commit:
-  jobs:
-    - script: "lint.sh"
-      runner: bash
+  commands:
+    lint:
+      run: npm run lint:ci
       glob: "*.{js,ts,tsx,json,css,html,scss}"
       stage_fixed: true
 
 prepare-commit-msg:
-  jobs:
-    - script: "prepare-commit-msg.sh"
+  commands:
+    commitzen:
       interactive: true
-      runner: bash
+      run: npx cz --hook
+      env:
+        LEFTHOOK: "0"
 
 commit-msg:
-  jobs:
-    - script: "commit-msg.sh"
-      runner: bash
+  commands:
+    "lint commit message":
+      run: yarn run commitlint --edit {1}

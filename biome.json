@@ -7,7 +7,16 @@
     "defaultBranch": "develop"
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": true,
+    "includes": [
+      "**/*.js",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.json",
+      "**/*.css",
+      "**/*.html",
+      "**/*.scss"
+    ]
   },
   "formatter": {
     "enabled": true,

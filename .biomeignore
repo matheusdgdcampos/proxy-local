@@ -1,0 +1,12 @@
+# Ignore markdown files
+**/*.md
+.github/**/*.md
+
+# Ignore other non-code files
+**/*.txt
+**/*.log
+**/*.sqlite
+**/*.db
+**/*.pem
+**/*.key
+**/*.crt
