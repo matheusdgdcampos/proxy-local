@@ -127,7 +127,7 @@ export class ProxyService {
       Object.keys(mockHeaders).forEach((key) => {
         res.setHeader(key, mockHeaders[key]);
       });
-      res.status(mockResponse.statusCode).send(mockResponse.body);
+      res.status(mockResponse.statusCode).json(mockResponse.body);
       return;
     }
 
