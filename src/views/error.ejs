@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <%- include('partials/header') %>
+  <%- include('partials/nav') %>
+  
+  <main class="container main-content">
+    <div class="error-page">
+      <h1>⚠️ Error</h1>
+      <p class="error-message"><%= message %></p>
+      <% if (error && typeof error === 'object') { %>
+      <details class="error-details">
+        <summary>Error Details</summary>
+        <pre><%= JSON.stringify(error, null, 2) %></pre>
+      </details>
+      <% } %>
+      <div class="mt-4">
+        <a href="/" class="btn btn-primary">Go to Dashboard</a>
+        <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
+      </div>
+    </div>
+  </main>
+  
+  <%- include('partials/footer') %>
+  
+  <script src="/js/main.js"></script>
+</body>
+</html>
+

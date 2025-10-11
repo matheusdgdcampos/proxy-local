@@ -1,0 +1,118 @@
+<% const currentPage = 'logs'; %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <%- include('partials/header') %>
+  <%- include('partials/nav') %>
+  
+  <main class="container main-content">
+    <div class="page-header">
+      <h1>Request Logs</h1>
+      <p>View and analyze intercepted HTTP requests</p>
+    </div>
+
+    <% if (error) { %>
+    <div class="alert alert-danger">
+      <%= error %>
+    </div>
+    <% } %>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Request History</h2>
+        <div class="card-actions">
+          <button class="btn btn-secondary" onclick="refreshLogs()">Refresh</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <% if (logs && logs.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Method</th>
+                <th>URL</th>
+                <th>Status</th>
+                <th>Response Time</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% logs.forEach(log => { %>
+              <tr>
+                <td><%= new Date(log.timestamp).toLocaleString() %></td>
+                <td><span class="badge badge-method-<%= log.method.toLowerCase() %>"><%= log.method %></span></td>
+                <td class="truncate" title="<%= log.url %>"><%= log.url %></td>
+                <td>
+                  <% if (log.responseStatus) { %>
+                    <span class="badge badge-status-<%= Math.floor(log.responseStatus / 100) %>xx"><%= log.responseStatus %></span>
+                  <% } else { %>
+                    <span class="badge badge-warning">Pending</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (log.responseTime) { %>
+                    <%= log.responseTime %>ms
+                  <% } else { %>
+                    -
+                  <% } %>
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-secondary" onclick="viewLogDetails('<%= log.id %>')">View</button>
+                  <% if (log.responseStatus) { %>
+                  <form method="POST" action="/logs/<%= log.id %>/create-mock" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-primary">Create Mock</button>
+                  </form>
+                  <% } %>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <% if (pagination.offset > 0) { %>
+          <a href="/logs?offset=<%= Math.max(0, pagination.offset - pagination.limit) %>&limit=<%= pagination.limit %>" class="btn btn-secondary">← Previous</a>
+          <% } %>
+          <% if (pagination.hasMore) { %>
+          <a href="/logs?offset=<%= pagination.offset + pagination.limit %>&limit=<%= pagination.limit %>" class="btn btn-secondary">Next →</a>
+          <% } %>
+        </div>
+        <% } else { %>
+        <div class="empty-state">
+          <p>No request logs available yet.</p>
+          <p class="text-muted">Logs will appear here as requests are intercepted by the proxy.</p>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+  
+  <%- include('partials/footer') %>
+  
+  <div id="toast-container"></div>
+  <div id="modal-container"></div>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    function refreshLogs() {
+      window.location.reload();
+    }
+
+    function viewLogDetails(logId) {
+      showLogModal(logId);
+    }
+  </script>
+</body>
+</html>
+

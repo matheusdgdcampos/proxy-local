@@ -1,14 +1,12 @@
 {
   "proxy": {
-    "target": "https://brasilapi.com.br",
-    "port": 3333,
-    "secure": false
+    "target": "http://localhost:3000",
+    "port": "3333"
   },
   "dashboard": {
-    "port": 3001
+    "port": "3001"
   },
   "https": {
-    "enabled": false,
     "certPath": "certs/cert.pem",
     "keyPath": "certs/key.pem"
   }

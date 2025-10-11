@@ -13,8 +13,15 @@ export class DashboardServer {
   constructor(port: number) {
     this.app = express();
     this.port = port;
+    this.configureViewEngine();
     this.configureMiddleware();
     this.configureRoutes();
+  }
+
+  private configureViewEngine(): void {
+    // Configure EJS as the view engine
+    this.app.set('view engine', 'ejs');
+    this.app.set('views', path.join(__dirname, '../views'));
   }
 
   private configureMiddleware(): void {
@@ -36,19 +43,50 @@ export class DashboardServer {
 
     // Servir arquivos estáticos do diretório public
     this.app.use(express.static(path.join(process.cwd(), 'public')));
-
-    // Servir arquivos estáticos do diretório dist (build JS)
-    this.app.use('/dist', express.static(path.join(process.cwd(), 'dist')));
   }
 
   private configureRoutes(): void {
-    // Rotas da API
+    // Import controllers
+    const {
+      dashboardController,
+    } = require('../controllers/DashboardController');
+    const { logsController } = require('../controllers/LogsController');
+    const { mocksController } = require('../controllers/MocksController');
+    const { settingsController } = require('../controllers/SettingsController');
+
+    // Keep API routes for AJAX progressive enhancement
     this.app.use('/api', apiRouter);
 
-    // Rota para o dashboard (SPA)
-    this.app.get('*', (_req, res) => {
-      res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
-    });
+    // Dashboard routes
+    this.app.get('/', (req, res) => dashboardController.index(req, res));
+
+    // Logs routes
+    this.app.get('/logs', (req, res) => logsController.index(req, res));
+    this.app.get('/logs/:id', (req, res) => logsController.show(req, res));
+    this.app.post('/logs/:id/create-mock', (req, res) =>
+      logsController.createMock(req, res),
+    );
+
+    // Mocks routes
+    this.app.get('/mocks', (req, res) => mocksController.index(req, res));
+    this.app.post('/mocks', (req, res) => mocksController.create(req, res));
+    this.app.get('/mocks/:id', (req, res) => mocksController.show(req, res));
+    this.app.get('/mocks/:id/edit', (req, res) =>
+      mocksController.edit(req, res),
+    );
+    this.app.post('/mocks/:id', (req, res) => mocksController.update(req, res));
+    this.app.post('/mocks/:id/delete', (req, res) =>
+      mocksController.delete(req, res),
+    );
+    this.app.post('/mocks/:id/toggle', (req, res) =>
+      mocksController.toggleActive(req, res),
+    );
+
+    // Settings routes
+    this.app.get('/settings', (req, res) => settingsController.index(req, res));
+    this.app.post('/settings', (req, res) =>
+      settingsController.update(req, res),
+    );
   }
 
   public start(): void {
