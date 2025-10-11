@@ -90,6 +90,29 @@ export class LogsController {
       res.redirect('/logs?error=failed-to-create-mock');
     }
   }
+
+  /**
+   * Clear all or old request logs
+   */
+  public async clear(req: Request, res: Response): Promise<void> {
+    try {
+      const days = parseInt(req.body.days as string, 10);
+
+      let count: number;
+      if (days && days > 0) {
+        count = dbService.clearOldRequestLogs(days);
+        logger.info('Old request logs cleared via controller', { days, count });
+      } else {
+        count = dbService.clearAllRequestLogs();
+        logger.info('All request logs cleared via controller', { count });
+      }
+
+      res.redirect('/logs?success=logs-cleared');
+    } catch (error) {
+      logger.error('Error clearing request logs', { error });
+      res.redirect('/logs?error=failed-to-clear-logs');
+    }
+  }
 }
 
 // Export a singleton instance

@@ -1,11 +1,70 @@
 import { type Request, type Response, Router } from 'express';
 import { type AppConfig, loadConfig, saveConfig } from '../config';
-import { dbService } from '../db/database';
+import { dbService, type RequestLog } from '../db/database';
 import { mockEngine } from '../mocks/mockEngine';
 import { logger } from '../utils/logger';
 
 // Cria o router para a API do dashboard
 export const apiRouter = Router();
+
+// SSE clients management
+const sseClients = new Set<Response>();
+
+// SSE endpoint for real-time logs
+apiRouter.get('/logs/stream', (req: Request, res: Response) => {
+  // Configure SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  // Add client to the list
+  sseClients.add(res);
+  logger.info('SSE client connected', { total: sseClients.size });
+
+  // Send heartbeat every 30 seconds
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 30000);
+
+  // Remove client on disconnect
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseClients.delete(res);
+    logger.info('SSE client disconnected', { total: sseClients.size });
+  });
+});
+
+// Broadcast new log to all connected clients
+export function broadcastNewLog(log: RequestLog): void {
+  const data = JSON.stringify(log);
+  sseClients.forEach((client) => {
+    try {
+      client.write(`event: newLog\ndata: ${data}\n\n`);
+    } catch (error) {
+      logger.error('Error broadcasting to SSE client', { error });
+      sseClients.delete(client);
+    }
+  });
+}
+
+// Broadcast log update to all connected clients
+export function broadcastLogUpdate(log: RequestLog): void {
+  const data = JSON.stringify(log);
+  sseClients.forEach((client) => {
+    try {
+      client.write(`event: logUpdate\ndata: ${data}\n\n`);
+    } catch (error) {
+      logger.error('Error broadcasting to SSE client', { error });
+      sseClients.delete(client);
+    }
+  });
+}
 
 // Endpoints para logs de requisições
 apiRouter.get('/logs', (req: Request, res: Response) => {
@@ -35,6 +94,34 @@ apiRouter.get('/logs/:id', (req: Request, res: Response) => {
     res
       .status(500)
       .json({ success: false, error: 'Failed to fetch request log' });
+  }
+});
+
+// Endpoint to clear request logs
+apiRouter.delete('/logs', (req: Request, res: Response) => {
+  try {
+    const days = parseInt(req.query.days as string, 10);
+
+    let count: number;
+    if (days && days > 0) {
+      count = dbService.clearOldRequestLogs(days);
+      logger.info('Old request logs cleared', { days, count });
+    } else {
+      count = dbService.clearAllRequestLogs();
+      logger.info('All request logs cleared', { count });
+    }
+
+    res.json({
+      success: true,
+      message: `${count} log(s) deleted successfully`,
+      count,
+    });
+  } catch (error) {
+    logger.error('Error clearing request logs', { error });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear request logs',
+    });
   }
 });
 

@@ -3,8 +3,9 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import express from 'express';
 import morgan from 'morgan';
+import { setBroadcastCallbacks } from '../db/database';
 import { logger } from '../utils/logger';
-import { apiRouter } from './api';
+import { apiRouter, broadcastLogUpdate, broadcastNewLog } from './api';
 
 export class DashboardServer {
   private app: express.Application;
@@ -16,6 +17,9 @@ export class DashboardServer {
     this.configureViewEngine();
     this.configureMiddleware();
     this.configureRoutes();
+
+    // Configure SSE broadcast callbacks
+    setBroadcastCallbacks(broadcastNewLog, broadcastLogUpdate);
   }
 
   private configureViewEngine(): void {
@@ -66,6 +70,7 @@ export class DashboardServer {
     this.app.post('/logs/:id/create-mock', (req, res) =>
       logsController.createMock(req, res),
     );
+    this.app.post('/logs/clear', (req, res) => logsController.clear(req, res));
 
     // Mocks routes
     this.app.get('/mocks', (req, res) => mocksController.index(req, res));

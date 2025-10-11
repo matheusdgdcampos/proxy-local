@@ -473,6 +473,179 @@ function enhanceForms() {
   });
 }
 
+// Real-Time Logs with SSE
+const LogsRealTime = {
+  eventSource: null,
+  isActive: false,
+
+  init() {
+    // Check if we're on the logs page
+    const logsTable = document.querySelector('.logs-table');
+    if (!logsTable) return;
+
+    this.connect();
+  },
+
+  connect() {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
+
+    this.eventSource = new EventSource('/api/logs/stream');
+    this.isActive = true;
+
+    // Update status indicator
+    this.updateStatusIndicator(true);
+
+    this.eventSource.addEventListener('newLog', (event) => {
+      const log = JSON.parse(event.data);
+      this.addLogToTable(log);
+    });
+
+    this.eventSource.addEventListener('logUpdate', (event) => {
+      const log = JSON.parse(event.data);
+      this.updateLogInTable(log);
+    });
+
+    this.eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      this.updateStatusIndicator(false);
+      this.reconnect();
+    };
+
+    console.log('SSE connection established');
+  },
+
+  disconnect() {
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+      this.isActive = false;
+      this.updateStatusIndicator(false);
+    }
+  },
+
+  reconnect() {
+    this.disconnect();
+    setTimeout(() => {
+      if (document.querySelector('.logs-table')) {
+        console.log('Reconnecting to SSE...');
+        this.connect();
+      }
+    }, 5000);
+  },
+
+  updateStatusIndicator(connected) {
+    const indicator = document.getElementById('realtime-status');
+    if (indicator) {
+      if (connected) {
+        indicator.classList.remove('disconnected');
+      } else {
+        indicator.classList.add('disconnected');
+      }
+    }
+  },
+
+  addLogToTable(log) {
+    const tbody = document.querySelector('.logs-table tbody');
+    if (!tbody) return;
+
+    // Check if already exists
+    const existingRow = document.getElementById(`log-${log.id}`);
+    if (existingRow) {
+      this.updateLogInTable(log);
+      return;
+    }
+
+    // Create new row
+    const row = this.createLogRow(log);
+
+    // Insert at the beginning (most recent first)
+    tbody.insertBefore(row, tbody.firstChild);
+
+    // Add highlight animation
+    row.classList.add('log-new');
+    setTimeout(() => row.classList.remove('log-new'), 2000);
+
+    // Remove last row if there are too many (limit 100)
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length > 100) {
+      rows[rows.length - 1].remove();
+    }
+  },
+
+  updateLogInTable(log) {
+    const row = document.getElementById(`log-${log.id}`);
+    if (!row) return;
+
+    // Update specific cells
+    const statusCell = row.querySelector('.log-status');
+    const responseTimeCell = row.querySelector('.log-response-time');
+    const actionsCell = row.querySelector('.log-actions');
+
+    if (statusCell && log.responseStatus) {
+      const statusClass = `badge badge-status-${Math.floor(log.responseStatus / 100)}xx`;
+      statusCell.innerHTML = `<span class="${statusClass}">${log.responseStatus}</span>`;
+    }
+
+    if (responseTimeCell && log.responseTime) {
+      responseTimeCell.textContent = `${log.responseTime}ms`;
+    }
+
+    if (actionsCell && log.responseStatus) {
+      // Add create mock button if not present
+      const createMockBtn = actionsCell.querySelector('.btn-create-mock');
+      if (!createMockBtn) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/logs/${log.id}/create-mock`;
+        form.style.display = 'inline';
+        form.innerHTML = `
+          <button type="submit" class="btn btn-sm btn-primary btn-create-mock">
+            Create Mock
+          </button>
+        `;
+        actionsCell.appendChild(form);
+      }
+    }
+
+    // Add update animation
+    row.classList.add('log-updated');
+    setTimeout(() => row.classList.remove('log-updated'), 1000);
+  },
+
+  createLogRow(log) {
+    const row = document.createElement('tr');
+    row.id = `log-${log.id}`;
+
+    const statusBadge = log.responseStatus
+      ? `<span class="badge badge-status-${Math.floor(log.responseStatus / 100)}xx">${log.responseStatus}</span>`
+      : '<span class="badge badge-warning">Pending</span>';
+
+    const responseTime = log.responseTime ? `${log.responseTime}ms` : '-';
+
+    const createMockButton = log.responseStatus
+      ? `<form method="POST" action="/logs/${log.id}/create-mock" style="display: inline;">
+           <button type="submit" class="btn btn-sm btn-primary btn-create-mock">Create Mock</button>
+         </form>`
+      : '';
+
+    row.innerHTML = `
+      <td>${new Date(log.timestamp).toLocaleString()}</td>
+      <td><span class="badge badge-method-${log.method.toLowerCase()}">${log.method}</span></td>
+      <td class="truncate" title="${log.url}">${log.url}</td>
+      <td class="log-status">${statusBadge}</td>
+      <td class="log-response-time">${responseTime}</td>
+      <td class="log-actions">
+        <button class="btn btn-sm btn-secondary" onclick="showLogModal('${log.id}')">View</button>
+        ${createMockButton}
+      </td>
+    `;
+
+    return row;
+  },
+};
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   // Show toast for query parameters
@@ -491,6 +664,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Enhance forms
   enhanceForms();
 
+  // Initialize real-time logs
+  LogsRealTime.init();
+
   // ESC key to close modal
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -499,12 +675,111 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// Disconnect SSE when leaving the page
+window.addEventListener('beforeunload', () => {
+  LogsRealTime.disconnect();
+});
+
+// Modal for clearing logs
+function showClearLogsModal() {
+  const content = document.createElement('div');
+  content.innerHTML = `
+    <div class="clear-logs-form">
+      <p><strong>⚠️ Warning:</strong> This action cannot be undone.</p>
+      
+      <div class="form-group">
+        <label class="form-label">Clear options:</label>
+        <div class="radio-group">
+          <label class="form-check">
+            <input type="radio" name="clearType" value="all" checked>
+            <span>Clear all logs</span>
+          </label>
+          <label class="form-check">
+            <input type="radio" name="clearType" value="old">
+            <span>Clear logs older than:</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group" id="days-input-group" style="display: none;">
+        <label class="form-label">Days to keep:</label>
+        <input type="number" id="days-input" class="form-control" 
+               value="7" min="1" placeholder="7">
+      </div>
+    </div>
+  `;
+
+  // Toggle visibility of days input
+  const radios = content.querySelectorAll('input[name="clearType"]');
+  const daysGroup = content.querySelector('#days-input-group');
+
+  radios.forEach((radio) => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'old') {
+        daysGroup.style.display = 'block';
+      } else {
+        daysGroup.style.display = 'none';
+      }
+    });
+  });
+
+  const actions = [
+    {
+      label: 'Cancel',
+      className: 'btn btn-secondary',
+      onClick: () => Modal.close(),
+    },
+    {
+      label: 'Clear Logs',
+      className: 'btn btn-danger',
+      onClick: () => confirmClearLogs(content),
+    },
+  ];
+
+  Modal.open('Clear Request Logs', content, actions);
+}
+
+async function confirmClearLogs(formContainer) {
+  const clearType = formContainer.querySelector(
+    'input[name="clearType"]:checked',
+  ).value;
+  const daysInput = formContainer.querySelector('#days-input');
+
+  let url = '/api/logs';
+  if (clearType === 'old' && daysInput) {
+    const days = parseInt(daysInput.value, 10);
+    if (days > 0) {
+      url += `?days=${days}`;
+    }
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      Toast.success(`${data.count} log(s) cleared successfully!`);
+      Modal.close();
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      Toast.error(data.error || 'Failed to clear logs');
+    }
+  } catch (error) {
+    console.error('Error clearing logs:', error);
+    Toast.error('Failed to clear logs');
+  }
+}
+
 function getSuccessMessage(key) {
   const messages = {
     'mock-created': 'Mock created successfully!',
     'mock-updated': 'Mock updated successfully!',
     'mock-deleted': 'Mock deleted successfully!',
     'mock-toggled': 'Mock status toggled successfully!',
+    'logs-cleared': 'Logs cleared successfully!',
     saved: 'Settings saved successfully!',
   };
   return messages[key] || 'Operation completed successfully!';
@@ -519,6 +794,7 @@ function getErrorMessage(key) {
     'failed-to-toggle': 'Failed to toggle mock status',
     'mock-not-found': 'Mock not found',
     'failed-to-create-mock': 'Failed to create mock from log',
+    'failed-to-clear-logs': 'Failed to clear logs',
     failed: 'Operation failed',
   };
   return messages[key] || 'An error occurred';

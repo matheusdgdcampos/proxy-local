@@ -184,6 +184,11 @@ body {
   font-weight: 600;
 }
 
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .btn {
   display: inline-block;
   padding: 0.5rem 1rem;
@@ -221,6 +226,14 @@ body {
 
 .btn-danger:hover {
   background-color: #c0392b;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
 }
 
 .btn-sm {
@@ -300,6 +313,17 @@ body {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.form-check input[type="radio"] {
+  cursor: pointer;
 }
 
 .alert {
@@ -983,6 +1007,89 @@ body {
   display: block;
 }
 
+/* Real-time logs animations */
+@keyframes highlight-new {
+  0% {
+    background-color: rgba(40, 167, 69, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes highlight-update {
+  0% {
+    background-color: rgba(255, 193, 7, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+tr.log-new {
+  animation: highlight-new 2s ease-out;
+}
+
+tr.log-updated {
+  animation: highlight-update 1s ease-out;
+}
+
+/* Real-time connection indicator */
+.realtime-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  z-index: 1000;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #28a745;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.realtime-indicator.disconnected .status-dot {
+  background-color: #dc3545;
+  animation: none;
+}
+
+.realtime-indicator.disconnected .status-text {
+  color: #dc3545;
+}
+
+/* Clear logs modal styles */
+.clear-logs-form {
+  min-width: 400px;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .stats-grid {
@@ -1021,5 +1128,12 @@ body {
 
   .info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .realtime-indicator {
+    bottom: 10px;
+    right: 10px;
+    font-size: 12px;
+    padding: 6px 12px;
   }
 }

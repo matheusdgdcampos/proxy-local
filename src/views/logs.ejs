@@ -29,12 +29,13 @@
         <h2 class="card-title">Request History</h2>
         <div class="card-actions">
           <button class="btn btn-secondary" onclick="refreshLogs()">Refresh</button>
+          <button class="btn btn-danger" onclick="showClearLogsModal()">Clear History</button>
         </div>
       </div>
       <div class="card-body">
         <% if (logs && logs.length > 0) { %>
         <div class="table-responsive">
-          <table class="table">
+          <table class="table logs-table" data-realtime="enabled">
             <thead>
               <tr>
                 <th>Timestamp</th>
@@ -47,29 +48,29 @@
             </thead>
             <tbody>
               <% logs.forEach(log => { %>
-              <tr>
+              <tr id="log-<%= log.id %>">
                 <td><%= new Date(log.timestamp).toLocaleString() %></td>
                 <td><span class="badge badge-method-<%= log.method.toLowerCase() %>"><%= log.method %></span></td>
                 <td class="truncate" title="<%= log.url %>"><%= log.url %></td>
-                <td>
+                <td class="log-status">
                   <% if (log.responseStatus) { %>
                     <span class="badge badge-status-<%= Math.floor(log.responseStatus / 100) %>xx"><%= log.responseStatus %></span>
                   <% } else { %>
                     <span class="badge badge-warning">Pending</span>
                   <% } %>
                 </td>
-                <td>
+                <td class="log-response-time">
                   <% if (log.responseTime) { %>
                     <%= log.responseTime %>ms
                   <% } else { %>
                     -
                   <% } %>
                 </td>
-                <td>
+                <td class="log-actions">
                   <button class="btn btn-sm btn-secondary" onclick="viewLogDetails('<%= log.id %>')">View</button>
                   <% if (log.responseStatus) { %>
                   <form method="POST" action="/logs/<%= log.id %>/create-mock" style="display: inline;">
-                    <button type="submit" class="btn btn-sm btn-primary">Create Mock</button>
+                    <button type="submit" class="btn btn-sm btn-primary btn-create-mock">Create Mock</button>
                   </form>
                   <% } %>
                 </td>
@@ -95,6 +96,12 @@
         </div>
         <% } %>
       </div>
+    </div>
+
+    <!-- Real-time status indicator -->
+    <div class="realtime-indicator" id="realtime-status">
+      <span class="status-dot"></span>
+      <span class="status-text">Real-time updates</span>
     </div>
   </main>
   
