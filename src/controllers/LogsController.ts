@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
  * LogsController
  * Handles request logs display and operations
  */
-export class LogsController {
+class LogsController {
   /**
    * Display logs list with pagination
    */

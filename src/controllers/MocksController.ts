@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
  * MocksController
  * Handles mock configurations CRUD operations
  */
-export class MocksController {
+class MocksController {
   /**
    * Display all mocks
    */

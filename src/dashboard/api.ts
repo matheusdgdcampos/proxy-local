@@ -24,13 +24,14 @@ apiRouter.get('/logs/stream', (req: Request, res: Response) => {
   logger.info('SSE client connected', { total: sseClients.size });
 
   // Send heartbeat every 30 seconds
+  const THIRTY_SECONDS_IN_MS = 30000;
   const heartbeat = setInterval(() => {
     try {
       res.write(': heartbeat\n\n');
     } catch {
       clearInterval(heartbeat);
     }
-  }, 30000);
+  }, THIRTY_SECONDS_IN_MS);
 
   // Remove client on disconnect
   req.on('close', () => {

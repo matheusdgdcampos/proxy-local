@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
  * SettingsController
  * Handles application configuration
  */
-export class SettingsController {
+class SettingsController {
   /**
    * Display settings form
    */

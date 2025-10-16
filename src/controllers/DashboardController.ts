@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
  * DashboardController
  * Handles the main dashboard/home page
  */
-export class DashboardController {
+class DashboardController {
   /**
    * Display the main dashboard with quick stats
    */
