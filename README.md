@@ -11,6 +11,7 @@ A powerful TypeScript-based HTTP proxy with request interception, mock engine, a
 - ⚡ **High Performance**: Built with MVC architecture using EJS templates
 - 🔒 **HTTPS Support**: Optional SSL/TLS encryption
 - 💾 **SQLite Database**: Persistent storage for mocks and request logs
+- 🛡️ **Graceful Shutdown**: Proper cleanup of resources on shutdown signals
 
 ## Architecture
 
@@ -315,6 +316,53 @@ npm run lint
 
 Lefthook is configured to run linting on pre-commit and commit message validation.
 
+## Graceful Shutdown
+
+The application implements graceful shutdown to ensure proper cleanup of resources:
+
+### How It Works
+
+When the application receives a shutdown signal (SIGTERM, SIGINT, or Ctrl+C), it:
+
+1. **Stops accepting new connections** on both proxy and dashboard servers
+2. **Waits for ongoing requests** to complete
+3. **Closes all server connections** properly
+4. **Closes database connections** to prevent data corruption
+5. **Exits the process** with appropriate status code
+
+### Shutdown Signals
+
+The application handles the following signals:
+
+- **SIGTERM** - Graceful shutdown (typically sent by process managers)
+- **SIGINT** - Interrupt signal (Ctrl+C in terminal)
+- **Uncaught Exception** - Attempts graceful shutdown on critical errors
+- **Unhandled Rejection** - Attempts graceful shutdown on promise rejections
+
+### Example
+
+```bash
+# Start the server
+npm start
+
+# In another terminal, send shutdown signal
+kill -TERM <pid>
+
+# Or press Ctrl+C in the terminal where the server is running
+```
+
+### Logs
+
+During shutdown, you'll see logs like:
+
+```
+[info]: SIGINT recebido. Iniciando graceful shutdown...
+[info]: Servidor proxy fechado
+[info]: Dashboard server closed
+[info]: Conexão com o banco de dados fechada
+[info]: Graceful shutdown concluído com sucesso
+```
+
 ## Troubleshooting
 
 ### Port Already in Use
@@ -339,6 +387,13 @@ For HTTPS functionality:
 1. Generate certificates: `npm run generate-certs`
 2. Update paths in `config.json`
 3. Accept self-signed certificate in browser
+
+### Forceful Shutdown
+
+If the graceful shutdown hangs:
+
+1. Wait up to 30 seconds for pending requests
+2. If still stuck, use: `kill -9 <pid>` (not recommended as it skips cleanup)
 
 ## Contributing
 
