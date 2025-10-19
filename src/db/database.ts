@@ -325,7 +325,15 @@ class DatabaseService {
     query += ' ORDER BY created_at DESC';
 
     const stmt = this.db.prepare(query);
-    return stmt.all() as MockConfig[];
+    const results = stmt.all() as Array<
+      Omit<MockConfig, 'active'> & { active: number }
+    >;
+
+    // Convert active from integer to boolean
+    return results.map((row) => ({
+      ...row,
+      active: row.active === 1,
+    }));
   }
 
   getMockConfigById(id: string): MockConfig | null {
@@ -341,7 +349,17 @@ class DatabaseService {
       WHERE id = ?
     `);
 
-    return stmt.get(id) as MockConfig | null;
+    const result = stmt.get(id) as
+      | (Omit<MockConfig, 'active'> & { active: number })
+      | null;
+
+    if (!result) return null;
+
+    // Convert active from integer to boolean
+    return {
+      ...result,
+      active: result.active === 1,
+    };
   }
 
   findMockConfigForRequest(url: string, method: string): MockConfig | null {
@@ -358,7 +376,17 @@ class DatabaseService {
       LIMIT 1
     `);
 
-    return stmt.get(url, method) as MockConfig | null;
+    const result = stmt.get(url, method) as
+      | (Omit<MockConfig, 'active'> & { active: number })
+      | null;
+
+    if (!result) return null;
+
+    // Convert active from integer to boolean
+    return {
+      ...result,
+      active: result.active === 1,
+    };
   }
 
   deleteMockConfig(id: string): boolean {

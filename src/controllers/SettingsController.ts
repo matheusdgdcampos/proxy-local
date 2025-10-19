@@ -7,6 +7,12 @@ import { logger } from '../utils/logger';
  * Handles application configuration
  */
 class SettingsController {
+  constructor() {
+    // Bind methods to preserve 'this' context
+    this.index = this.index.bind(this);
+    this.update = this.update.bind(this);
+  }
+
   /**
    * Display settings form
    */

@@ -8,6 +8,14 @@ import { logger } from '../utils/logger';
  * Handles request logs display and operations
  */
 class LogsController {
+  constructor() {
+    // Bind methods to preserve 'this' context
+    this.index = this.index.bind(this);
+    this.show = this.show.bind(this);
+    this.createMock = this.createMock.bind(this);
+    this.clear = this.clear.bind(this);
+  }
+
   /**
    * Display logs list with pagination
    */

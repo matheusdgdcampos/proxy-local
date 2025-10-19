@@ -7,6 +7,17 @@ import { logger } from '../utils/logger';
  * Handles mock configurations CRUD operations
  */
 class MocksController {
+  constructor() {
+    // Bind methods to preserve 'this' context
+    this.index = this.index.bind(this);
+    this.create = this.create.bind(this);
+    this.show = this.show.bind(this);
+    this.edit = this.edit.bind(this);
+    this.update = this.update.bind(this);
+    this.delete = this.delete.bind(this);
+    this.toggleActive = this.toggleActive.bind(this);
+  }
+
   /**
    * Display all mocks
    */
@@ -26,7 +37,10 @@ class MocksController {
         activeOnly,
       });
     } catch (error) {
-      logger.error('Error fetching mocks', { error });
+      logger.error('Error fetching mocks', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       res.render('mocks', {
         title: 'Mock Configurations - TS Mock Proxy',
         mocks: [],

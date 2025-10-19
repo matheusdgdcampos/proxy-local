@@ -8,6 +8,11 @@ import { logger } from '../utils/logger';
  * Handles the main dashboard/home page
  */
 class DashboardController {
+  constructor() {
+    // Bind methods to preserve 'this' context
+    this.index = this.index.bind(this);
+  }
+
   /**
    * Display the main dashboard with quick stats
    */
