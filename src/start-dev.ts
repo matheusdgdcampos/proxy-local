@@ -64,14 +64,27 @@ async function startServer() {
     );
     logger.info('TS Mock Proxy iniciado com sucesso!');
 
-    console.log('\n=== TS Mock Proxy ===');
+    console.log('\n');
     console.log(
-      `Proxy: ${config.https.enabled ? 'https' : 'http'}://localhost:${
+      '.-----.  .----.   .-.  .-.  .---.  .----. .-..-.   .-.-.  .---.   .---.  .-..-. .-.  .-.',
+    );
+    console.log(
+      "`-' '-' { {__-`   }  \\/  { / {-. \\ | }`-' | ' /    | } }} } }}_} / {-. \\ \\ {} /  \\ \\/ /",
+    );
+    console.log(
+      "  } {   .-._} }   | {  } | \\ '-} / | },-. | . \\    | |-'  | } \\  \\ '-} / / {} \\   `-\\ }",
+    );
+    console.log(
+      "  `-'   `----'    `-'  `-'  `---'  `----' `-'`-`   `-'    `-'-'   `---'  `-'`-'     `-'",
+    );
+    console.log('');
+    console.log(
+      `  Proxy: ${config.https.enabled ? 'https' : 'http'}://localhost:${
         config.proxy.port
       } -> ${config.proxy.target}`,
     );
-    console.log(`Dashboard: http://localhost:${config.dashboard.port}`);
-    console.log('====================\n');
+    console.log(`  Dashboard: http://localhost:${config.dashboard.port}`);
+    console.log('');
   } catch (error) {
     logger.error('Erro ao iniciar o servidor:', { error });
     process.exit(1);
