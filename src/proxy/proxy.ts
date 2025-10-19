@@ -200,7 +200,7 @@ export class ProxyService {
         res.status(mockResponse.statusCode).json(parsedBody);
       } catch {
         // If body is not JSON, send as plain text
-        res.status(mockResponse.statusCode).send(mockResponse.body);
+        res.status(mockResponse.statusCode).json(mockResponse.body);
       }
       return;
     }
