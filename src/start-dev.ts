@@ -4,8 +4,64 @@ import https from 'node:https';
 import express from 'express';
 import { config } from './config';
 import { createDashboardServer } from './dashboard/server';
+import { dbService } from './db/database';
 import { createProxyService } from './proxy/proxy';
 import { logger } from './utils/logger';
+
+// Server instances for graceful shutdown
+let proxyServer: http.Server | https.Server | null = null;
+let dashboardServer: ReturnType<typeof createDashboardServer> | null = null;
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    logger.warn('Shutdown already in progress...');
+    return;
+  }
+
+  isShuttingDown = true;
+  logger.info(`${signal} recebido. Iniciando graceful shutdown...`);
+
+  // Set a timeout to force exit if shutdown takes too long
+  const forceExitTimeout = setTimeout(() => {
+    logger.error('Graceful shutdown timeout - forçando saída após 30 segundos');
+    process.exit(1);
+  }, 30000);
+
+  try {
+    // Close proxy server
+    if (proxyServer) {
+      await new Promise<void>((resolve, reject) => {
+        proxyServer?.close((err) => {
+          if (err) {
+            logger.error('Erro ao fechar servidor proxy:', { error: err });
+            reject(err);
+          } else {
+            logger.info('Servidor proxy fechado');
+            resolve();
+          }
+        });
+      });
+    }
+
+    // Close dashboard server
+    if (dashboardServer) {
+      await dashboardServer.stop();
+    }
+
+    // Close database connection
+    dbService.close();
+    logger.info('Conexão com o banco de dados fechada');
+
+    logger.info('Graceful shutdown concluído com sucesso');
+    clearTimeout(forceExitTimeout);
+    process.exit(0);
+  } catch (error) {
+    logger.error('Erro durante o graceful shutdown:', { error });
+    clearTimeout(forceExitTimeout);
+    process.exit(1);
+  }
+}
 
 async function startServer() {
   logger.info('Iniciando TS Mock Proxy...');
@@ -26,7 +82,6 @@ async function startServer() {
     app.use(proxyService.getMiddleware());
 
     // Cria o servidor HTTP ou HTTPS para o proxy
-    let proxyServer: http.Server | https.Server;
     if (config.https.enabled) {
       try {
         const httpsOptions = {
@@ -56,7 +111,7 @@ async function startServer() {
     });
 
     // Inicia o servidor do dashboard
-    const dashboardServer = createDashboardServer(config.dashboard.port);
+    dashboardServer = createDashboardServer(config.dashboard.port);
     dashboardServer.start();
 
     logger.info(
@@ -85,6 +140,21 @@ async function startServer() {
     );
     console.log(`  Dashboard: http://localhost:${config.dashboard.port}`);
     console.log('');
+
+    // Setup graceful shutdown handlers
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+    // Handle uncaught errors
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught exception:', { error });
+      gracefulShutdown('UNCAUGHT_EXCEPTION');
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('Unhandled rejection at:', { promise, reason });
+      gracefulShutdown('UNHANDLED_REJECTION');
+    });
   } catch (error) {
     logger.error('Erro ao iniciar o servidor:', { error });
     process.exit(1);

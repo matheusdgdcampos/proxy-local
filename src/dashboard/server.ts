@@ -15,6 +15,7 @@ import { apiRouter, broadcastLogUpdate, broadcastNewLog } from './api';
 export class DashboardServer {
   private app: Express;
   private port: number;
+  private server: ReturnType<Express['listen']> | null = null;
 
   constructor(port: number) {
     this.app = express();
@@ -82,8 +83,27 @@ export class DashboardServer {
   }
 
   public start(): void {
-    this.app.listen(this.port, () => {
+    this.server = this.app.listen(this.port, () => {
       logger.info(`Dashboard server running on port ${this.port}`);
+    });
+  }
+
+  public async stop(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.server) {
+        resolve();
+        return;
+      }
+
+      this.server.close((err) => {
+        if (err) {
+          logger.error('Error closing dashboard server:', { error: err });
+          reject(err);
+        } else {
+          logger.info('Dashboard server closed');
+          resolve();
+        }
+      });
     });
   }
 }

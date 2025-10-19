@@ -394,6 +394,13 @@ class DatabaseService {
     const result = stmt.run(id);
     return result.changes > 0;
   }
+
+  /**
+   * Closes the database connection
+   */
+  close(): void {
+    this.db.close();
+  }
 }
 
 // Exporta uma instância única do serviço de banco de dados
