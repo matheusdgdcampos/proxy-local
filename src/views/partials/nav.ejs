@@ -1,0 +1,31 @@
+<nav class="nav">
+  <div class="container">
+    <ul class="nav-list">
+      <li class="nav-item">
+        <a href="/" class="nav-link <%= (typeof currentPage !== 'undefined' && currentPage === 'dashboard') ? 'active' : '' %>">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="/logs" class="nav-link <%= (typeof currentPage !== 'undefined' && currentPage === 'logs') ? 'active' : '' %>">
+          <span class="nav-icon">📝</span>
+          <span class="nav-text">Request Logs</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="/mocks" class="nav-link <%= (typeof currentPage !== 'undefined' && currentPage === 'mocks') ? 'active' : '' %>">
+          <span class="nav-icon">🎭</span>
+          <span class="nav-text">Mock Configurations</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="/settings" class="nav-link <%= (typeof currentPage !== 'undefined' && currentPage === 'settings') ? 'active' : '' %>">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Settings</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>
+

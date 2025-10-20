@@ -1,0 +1,109 @@
+<% const currentPage = 'dashboard'; %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <%- include('partials/header') %>
+  <%- include('partials/nav') %>
+  
+  <main class="container main-content">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p>Welcome to TS Mock Proxy - Your HTTP request interceptor and mock engine</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+          <h3><%= stats.totalMocks %></h3>
+          <p>Total Mocks</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+          <h3><%= stats.activeMocks %></h3>
+          <p>Active Mocks</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">📝</div>
+        <div class="stat-content">
+          <h3><%= stats.recentLogsCount %></h3>
+          <p>Recent Logs</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <h2 class="card-title">Quick Actions</h2>
+      </div>
+      <div class="card-body">
+        <div class="action-buttons">
+          <a href="/mocks" class="btn btn-primary">Manage Mocks</a>
+          <a href="/logs" class="btn btn-secondary">View Logs</a>
+          <a href="/settings" class="btn btn-secondary">Configure Settings</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Logs -->
+    <% if (recentLogs && recentLogs.length > 0) { %>
+    <div class="card mt-4">
+      <div class="card-header">
+        <h2 class="card-title">Recent Request Logs</h2>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Method</th>
+              <th>URL</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentLogs.forEach(log => { %>
+            <tr>
+              <td><%= new Date(log.timestamp).toLocaleString() %></td>
+              <td><span class="badge badge-method-<%= log.method.toLowerCase() %>"><%= log.method %></span></td>
+              <td class="truncate"><%= log.url %></td>
+              <td>
+                <% if (log.responseStatus) { %>
+                  <span class="badge badge-status-<%= Math.floor(log.responseStatus / 100) %>xx"><%= log.responseStatus %></span>
+                <% } else { %>
+                  <span class="badge badge-warning">Pending</span>
+                <% } %>
+              </td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+        <div class="text-center mt-3">
+          <a href="/logs" class="btn btn-link">View All Logs →</a>
+        </div>
+      </div>
+    </div>
+    <% } %>
+  </main>
+  
+  <%- include('partials/footer') %>
+  
+  <div id="toast-container"></div>
+  <script src="/js/main.js"></script>
+</body>
+</html>
+

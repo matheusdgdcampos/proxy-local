@@ -17,6 +17,22 @@ export interface RequestLog {
   responseTime?: number;
 }
 
+// Callback types for broadcasting
+type BroadcastCallback = (log: RequestLog) => void;
+
+// Broadcast callbacks (injected to avoid circular dependencies)
+let broadcastNewLog: BroadcastCallback | null = null;
+let broadcastLogUpdate: BroadcastCallback | null = null;
+
+// Setter for broadcast callbacks
+export function setBroadcastCallbacks(
+  onNewLog: BroadcastCallback,
+  onLogUpdate: BroadcastCallback,
+): void {
+  broadcastNewLog = onNewLog;
+  broadcastLogUpdate = onLogUpdate;
+}
+
 export interface MockConfig {
   id: string;
   url: string;
@@ -110,6 +126,14 @@ class DatabaseService {
       log.responseTime || null,
     );
 
+    // Broadcast the new log to SSE clients
+    if (broadcastNewLog) {
+      const savedLog = this.getRequestLogById(id);
+      if (savedLog) {
+        broadcastNewLog(savedLog);
+      }
+    }
+
     return id;
   }
 
@@ -127,6 +151,14 @@ class DatabaseService {
     `);
 
     stmt.run(responseStatus, responseHeaders, responseBody, responseTime, id);
+
+    // Broadcast the log update to SSE clients
+    if (broadcastLogUpdate) {
+      const updatedLog = this.getRequestLogById(id);
+      if (updatedLog) {
+        broadcastLogUpdate(updatedLog);
+      }
+    }
   }
 
   getRequestLogs(limit = 100, offset = 0): RequestLog[] {
@@ -158,6 +190,30 @@ class DatabaseService {
     `);
 
     return stmt.get(id) as RequestLog | null;
+  }
+
+  /**
+   * Clear all request logs
+   * @returns Number of records deleted
+   */
+  clearAllRequestLogs(): number {
+    const stmt = this.db.prepare('DELETE FROM request_logs');
+    const result = stmt.run();
+    return result.changes;
+  }
+
+  /**
+   * Clear request logs older than X days
+   * @param days Number of days to keep
+   * @returns Number of records deleted
+   */
+  clearOldRequestLogs(days: number): number {
+    const cutoffTimestamp = Date.now() - days * 24 * 60 * 60 * 1000;
+    const stmt = this.db.prepare(
+      'DELETE FROM request_logs WHERE timestamp < ?',
+    );
+    const result = stmt.run(cutoffTimestamp);
+    return result.changes;
   }
 
   // Métodos para configurações de mock
@@ -269,7 +325,15 @@ class DatabaseService {
     query += ' ORDER BY created_at DESC';
 
     const stmt = this.db.prepare(query);
-    return stmt.all() as MockConfig[];
+    const results = stmt.all() as Array<
+      Omit<MockConfig, 'active'> & { active: number }
+    >;
+
+    // Convert active from integer to boolean
+    return results.map((row) => ({
+      ...row,
+      active: row.active === 1,
+    }));
   }
 
   getMockConfigById(id: string): MockConfig | null {
@@ -285,7 +349,17 @@ class DatabaseService {
       WHERE id = ?
     `);
 
-    return stmt.get(id) as MockConfig | null;
+    const result = stmt.get(id) as
+      | (Omit<MockConfig, 'active'> & { active: number })
+      | null;
+
+    if (!result) return null;
+
+    // Convert active from integer to boolean
+    return {
+      ...result,
+      active: result.active === 1,
+    };
   }
 
   findMockConfigForRequest(url: string, method: string): MockConfig | null {
@@ -302,13 +376,30 @@ class DatabaseService {
       LIMIT 1
     `);
 
-    return stmt.get(url, method) as MockConfig | null;
+    const result = stmt.get(url, method) as
+      | (Omit<MockConfig, 'active'> & { active: number })
+      | null;
+
+    if (!result) return null;
+
+    // Convert active from integer to boolean
+    return {
+      ...result,
+      active: result.active === 1,
+    };
   }
 
   deleteMockConfig(id: string): boolean {
     const stmt = this.db.prepare('DELETE FROM mock_configs WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
+  }
+
+  /**
+   * Closes the database connection
+   */
+  close(): void {
+    this.db.close();
   }
 }
 

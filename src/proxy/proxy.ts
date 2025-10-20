@@ -88,7 +88,7 @@ export class ProxyService {
   private handleProxyRequest(
     proxyReq: ClientRequest,
     req: ExtendedRequest,
-    res: Response,
+    _res: Response,
   ): void {
     let requestBody = '';
     if (req.body) {
@@ -103,35 +103,7 @@ export class ProxyService {
     req.proxyStartTime = Date.now();
     req.originalBody = requestBody;
 
-    // Se houver mock, retorna ele imediatamente
-    const mockResponse = mockEngine.findMockForRequest(req.url, req.method);
-    if (mockResponse) {
-      logger.info(`Using mock for ${req.method} ${req.url}`);
-      proxyReq.abort();
-
-      const requestLog: Omit<RequestLog, 'id'> = {
-        url: req.url,
-        method: req.method,
-        headers: JSON.stringify(req.headers),
-        body: requestBody,
-        timestamp: Date.now(),
-        responseStatus: mockResponse.statusCode,
-        responseHeaders: mockResponse.headers,
-        responseBody: mockResponse.body,
-        responseTime: 0,
-      };
-
-      dbService.saveRequestLog(requestLog);
-
-      const mockHeaders = JSON.parse(mockResponse.headers);
-      Object.keys(mockHeaders).forEach((key) => {
-        res.setHeader(key, mockHeaders[key]);
-      });
-      res.status(mockResponse.statusCode).json(mockResponse.body);
-      return;
-    }
-
-    // Sempre registra logs se não for arquivo estático/HMR/etc
+    // Log the proxied request (mocks are already handled in mockCheckMiddleware)
     if (this.shouldLogRequest(req.url)) {
       logger.info(`Proxying ${req.method} ${req.url} to ${this.config.target}`);
 
@@ -180,8 +152,70 @@ export class ProxyService {
     });
   }
 
+  /**
+   * Middleware to check for mocks before proxying
+   */
+  private mockCheckMiddleware(
+    req: ExtendedRequest,
+    res: Response,
+    next: () => void,
+  ): void {
+    // Check if there's a mock for this request
+    const mockResponse = mockEngine.findMockForRequest(req.url, req.method);
+
+    if (mockResponse) {
+      logger.info(`Using mock for ${req.method} ${req.url}`);
+
+      // Capture request body for logging
+      let requestBody = '';
+      if (req.body) {
+        requestBody =
+          typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+      }
+
+      // Log the request with mock response
+      const requestLog: Omit<RequestLog, 'id'> = {
+        url: req.url,
+        method: req.method,
+        headers: JSON.stringify(req.headers),
+        body: requestBody,
+        timestamp: Date.now(),
+        responseStatus: mockResponse.statusCode,
+        responseHeaders: mockResponse.headers,
+        responseBody: mockResponse.body,
+        responseTime: 0,
+      };
+
+      dbService.saveRequestLog(requestLog);
+
+      // Parse and set response headers
+      const mockHeaders = JSON.parse(mockResponse.headers);
+      Object.keys(mockHeaders).forEach((key) => {
+        res.setHeader(key, mockHeaders[key]);
+      });
+
+      // Parse body if it's a JSON string, otherwise send as-is
+      try {
+        const parsedBody = JSON.parse(mockResponse.body);
+        res.status(mockResponse.statusCode).json(parsedBody);
+      } catch {
+        // If body is not JSON, send as plain text
+        res.status(mockResponse.statusCode).json(mockResponse.body);
+      }
+      return;
+    }
+
+    // No mock found, proceed to proxy
+    next();
+  }
+
   getMiddleware(): RequestHandler {
-    return this.proxyMiddleware;
+    // Return a combined middleware that checks mocks first, then proxies
+    return (req: Request, res: Response, next) => {
+      this.mockCheckMiddleware(req as ExtendedRequest, res, () => {
+        this.proxyMiddleware(req, res, next);
+      });
+    };
   }
 }
 

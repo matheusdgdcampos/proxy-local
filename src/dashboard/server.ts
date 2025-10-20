@@ -1,20 +1,37 @@
 import path from 'node:path';
-import bodyParser from 'body-parser';
 import cors from 'cors';
-import express from 'express';
+import express, { type Express } from 'express';
 import morgan from 'morgan';
+import {
+  dashboardController,
+  logsController,
+  mocksController,
+  settingsController,
+} from '../controllers';
+import { setBroadcastCallbacks } from '../db/database';
 import { logger } from '../utils/logger';
-import { apiRouter } from './api';
+import { apiRouter, broadcastLogUpdate, broadcastNewLog } from './api';
 
 export class DashboardServer {
-  private app: express.Application;
+  private app: Express;
   private port: number;
+  private server: ReturnType<Express['listen']> | null = null;
 
   constructor(port: number) {
     this.app = express();
     this.port = port;
+    this.configureViewEngine();
     this.configureMiddleware();
     this.configureRoutes();
+
+    // Configure SSE broadcast callbacks
+    setBroadcastCallbacks(broadcastNewLog, broadcastLogUpdate);
+  }
+
+  private configureViewEngine(): void {
+    // Configure EJS as the view engine
+    this.app.set('view engine', 'ejs');
+    this.app.set('views', path.join(__dirname, '../views'));
   }
 
   private configureMiddleware(): void {
@@ -31,29 +48,62 @@ export class DashboardServer {
     );
 
     // Middleware para parsing de JSON
-    this.app.use(bodyParser.json());
-    this.app.use(bodyParser.urlencoded({ extended: true }));
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
 
     // Servir arquivos estáticos do diretório public
     this.app.use(express.static(path.join(process.cwd(), 'public')));
-
-    // Servir arquivos estáticos do diretório dist (build JS)
-    this.app.use('/dist', express.static(path.join(process.cwd(), 'dist')));
   }
 
   private configureRoutes(): void {
-    // Rotas da API
+    // Keep API routes for AJAX progressive enhancement
     this.app.use('/api', apiRouter);
 
-    // Rota para o dashboard (SPA)
-    this.app.get('*', (_req, res) => {
-      res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
-    });
+    // Dashboard routes
+    this.app.get('/', dashboardController.index);
+
+    // Logs routes
+    this.app.get('/logs', logsController.index);
+    this.app.get('/logs/:id', logsController.show);
+    this.app.post('/logs/:id/create-mock', logsController.createMock);
+    this.app.post('/logs/clear', logsController.clear);
+
+    // Mocks routes
+    this.app.get('/mocks', mocksController.index);
+    this.app.post('/mocks', mocksController.create);
+    this.app.get('/mocks/:id', mocksController.show);
+    this.app.get('/mocks/:id/edit', mocksController.edit);
+    this.app.post('/mocks/:id', mocksController.update);
+    this.app.post('/mocks/:id/delete', mocksController.delete);
+    this.app.post('/mocks/:id/toggle', mocksController.toggleActive);
+
+    // Settings routes
+    this.app.get('/settings', settingsController.index);
+    this.app.post('/settings', settingsController.update);
   }
 
   public start(): void {
-    this.app.listen(this.port, () => {
+    this.server = this.app.listen(this.port, () => {
       logger.info(`Dashboard server running on port ${this.port}`);
+    });
+  }
+
+  public async stop(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.server) {
+        resolve();
+        return;
+      }
+
+      this.server.close((err) => {
+        if (err) {
+          logger.error('Error closing dashboard server:', { error: err });
+          reject(err);
+        } else {
+          logger.info('Dashboard server closed');
+          resolve();
+        }
+      });
     });
   }
 }

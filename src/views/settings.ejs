@@ -1,0 +1,198 @@
+<% const currentPage = 'settings'; %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <%- include('partials/header') %>
+  <%- include('partials/nav') %>
+  
+  <main class="container main-content">
+    <div class="page-header">
+      <h1>Settings</h1>
+      <p>Configure your proxy and dashboard settings</p>
+    </div>
+
+    <% if (successMessage) { %>
+    <div class="alert alert-success">
+      <%= successMessage %>
+    </div>
+    <% } %>
+
+    <% if (errorMessage) { %>
+    <div class="alert alert-danger">
+      <%= errorMessage %>
+    </div>
+    <% } %>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Configuration</h2>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/settings">
+          <!-- Proxy Settings -->
+          <div class="form-section">
+            <h3>Proxy Settings</h3>
+            
+            <div class="form-group">
+              <label class="form-label" for="proxy-target">Target URL</label>
+              <input 
+                type="text" 
+                id="proxy-target" 
+                name="proxy[target]" 
+                class="form-control" 
+                value="<%= config.proxy.target %>" 
+                placeholder="http://api.example.com"
+                required
+              >
+              <small class="text-muted">URL where requests will be forwarded when no mock matches</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="proxy-port">Proxy Port</label>
+              <input 
+                type="number" 
+                id="proxy-port" 
+                name="proxy[port]" 
+                class="form-control" 
+                value="<%= config.proxy.port %>" 
+                min="1" 
+                max="65535"
+                required
+              >
+              <small class="text-muted">Port where the proxy will listen for requests</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-check">
+                <input 
+                  type="checkbox" 
+                  name="proxy[secure]" 
+                  value="true"
+                  <%= config.proxy.secure ? 'checked' : '' %>
+                >
+                <span>Secure Connection (HTTPS)</span>
+              </label>
+              <small class="text-muted">Enable secure HTTPS connections for proxy target</small>
+            </div>
+          </div>
+
+          <!-- Dashboard Settings -->
+          <div class="form-section">
+            <h3>Dashboard Settings</h3>
+            
+            <div class="form-group">
+              <label class="form-label" for="dashboard-port">Dashboard Port</label>
+              <input 
+                type="number" 
+                id="dashboard-port" 
+                name="dashboard[port]" 
+                class="form-control" 
+                value="<%= config.dashboard.port %>" 
+                min="1" 
+                max="65535"
+                required
+              >
+              <small class="text-muted">Port where the dashboard web interface will be available</small>
+            </div>
+          </div>
+
+          <!-- HTTPS Settings -->
+          <div class="form-section">
+            <h3>HTTPS Settings</h3>
+            
+            <div class="form-group">
+              <label class="form-check">
+                <input 
+                  type="checkbox" 
+                  name="https[enabled]" 
+                  value="true"
+                  <%= config.https.enabled ? 'checked' : '' %>
+                >
+                <span>Enable HTTPS</span>
+              </label>
+              <small class="text-muted">Enable HTTPS for proxy and dashboard (requires self-signed certificate)</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="cert-path">Certificate Path</label>
+              <input 
+                type="text" 
+                id="cert-path" 
+                name="https[certPath]" 
+                class="form-control" 
+                value="<%= config.https.certPath %>"
+              >
+              <small class="text-muted">Path to SSL certificate file</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="key-path">Key Path</label>
+              <input 
+                type="text" 
+                id="key-path" 
+                name="https[keyPath]" 
+                class="form-control" 
+                value="<%= config.https.keyPath %>"
+              >
+              <small class="text-muted">Path to SSL private key file</small>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+            <button type="reset" class="btn btn-secondary">Reset</button>
+          </div>
+        </form>
+
+        <div class="alert alert-info mt-4">
+          <strong>Note:</strong> Changes to port settings require a server restart to take effect.
+        </div>
+      </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <h2 class="card-title">System Information</h2>
+      </div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="info-card">
+            <h4>Proxy Status</h4>
+            <p>Status: <span class="badge badge-success">Active</span></p>
+            <p>Port: <%= config.proxy.port %></p>
+            <p>Target: <%= config.proxy.target %></p>
+          </div>
+
+          <div class="info-card">
+            <h4>Dashboard</h4>
+            <p>Status: <span class="badge badge-success">Active</span></p>
+            <p>Port: <%= config.dashboard.port %></p>
+            <p>URL: http://localhost:<%= config.dashboard.port %></p>
+          </div>
+
+          <div class="info-card">
+            <h4>Database</h4>
+            <p>Type: SQLite</p>
+            <p>File: ./data/mockproxy.db</p>
+            <p>Status: <span class="badge badge-success">Connected</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <%- include('partials/footer') %>
+  
+  <div id="toast-container"></div>
+  <script src="/js/main.js"></script>
+</body>
+</html>
+
