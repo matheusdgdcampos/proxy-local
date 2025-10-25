@@ -28,7 +28,7 @@
     "http-proxy-middleware": "^2.0.6",
     "morgan": "^1.10.0",
     "uuid": "^9.0.0",
-    "winston": "^3.10.0"
+    "winston": "^3.18.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
