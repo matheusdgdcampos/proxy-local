@@ -45,6 +45,30 @@ export interface MockConfig {
   updatedAt: number;
 }
 
+export type DomainPatternType = 'wildcard' | 'regex';
+
+export interface CookieDefinition {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  expires?: number | null;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: 'Strict' | 'Lax' | 'None' | '';
+}
+
+export interface CookieMock {
+  id: string;
+  label: string;
+  domainPattern: string;
+  patternType: DomainPatternType;
+  cookies: CookieDefinition[];
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 class DatabaseService {
   private db: Database.Database;
   private dbPath: string;
@@ -62,7 +86,14 @@ class DatabaseService {
   }
 
   private initDatabase(): void {
-    // Tabela para logs de requisições
+    this.createRequestLogsTable();
+    this.createMockConfigsTable();
+    this.createCookieMocksTable();
+    this.ensureCookieMocksSchema();
+    this.createIndexes();
+  }
+
+  private createRequestLogsTable(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS request_logs (
         id TEXT PRIMARY KEY,
@@ -77,8 +108,9 @@ class DatabaseService {
         response_time INTEGER
       )
     `);
+  }
 
-    // Tabela para configurações de mock
+  private createMockConfigsTable(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS mock_configs (
         id TEXT PRIMARY KEY,
@@ -92,14 +124,64 @@ class DatabaseService {
         updated_at INTEGER NOT NULL
       )
     `);
+  }
 
-    // Índices para melhorar a performance
+  private createCookieMocksTable(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS cookie_mocks (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        domain_pattern TEXT NOT NULL,
+        pattern_type TEXT NOT NULL,
+        cookies TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+  }
+
+  private ensureCookieMocksSchema(): void {
+    const requiredColumns = new Set([
+      'id',
+      'label',
+      'domain_pattern',
+      'pattern_type',
+      'cookies',
+      'active',
+      'created_at',
+      'updated_at',
+    ]);
+
+    const columns = this.db
+      .prepare('PRAGMA table_info(cookie_mocks)')
+      .all() as Array<{ name: string }>;
+
+    if (columns.length === 0) {
+      this.createCookieMocksTable();
+      return;
+    }
+
+    const existingColumns = new Set(columns.map((column) => column.name));
+    const hasMissingColumns = Array.from(requiredColumns).some(
+      (column) => !existingColumns.has(column),
+    );
+
+    if (hasMissingColumns) {
+      this.db.exec('DROP TABLE IF EXISTS cookie_mocks');
+      this.createCookieMocksTable();
+    }
+  }
+
+  private createIndexes(): void {
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_request_logs_url ON request_logs(url);
       CREATE INDEX IF NOT EXISTS idx_request_logs_method ON request_logs(method);
       CREATE INDEX IF NOT EXISTS idx_mock_configs_url ON mock_configs(url);
       CREATE INDEX IF NOT EXISTS idx_mock_configs_method ON mock_configs(method);
       CREATE INDEX IF NOT EXISTS idx_mock_configs_active ON mock_configs(active);
+      CREATE INDEX IF NOT EXISTS idx_cookie_mocks_domain_pattern ON cookie_mocks(domain_pattern);
+      CREATE INDEX IF NOT EXISTS idx_cookie_mocks_active ON cookie_mocks(active);
     `);
   }
 
@@ -391,6 +473,166 @@ class DatabaseService {
 
   deleteMockConfig(id: string): boolean {
     const stmt = this.db.prepare('DELETE FROM mock_configs WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+
+  private mapCookieMockRow(
+    row:
+      | (Omit<CookieMock, 'active' | 'cookies'> & {
+          active: number;
+          cookies: string;
+        })
+      | null,
+  ): CookieMock | null {
+    if (!row) return null;
+    let cookies: CookieDefinition[] = [];
+    try {
+      cookies = JSON.parse(row.cookies) as CookieDefinition[];
+    } catch {
+      cookies = [];
+    }
+
+    return {
+      ...(row as unknown as Omit<CookieMock, 'active' | 'cookies'>),
+      active: row.active === 1,
+      cookies,
+    };
+  }
+
+  saveCookieMock(
+    config: Omit<CookieMock, 'id' | 'createdAt' | 'updatedAt'>,
+  ): string {
+    const id = uuidv4();
+    const now = Date.now();
+
+    const stmt = this.db.prepare(`
+      INSERT INTO cookie_mocks (
+        id, label, domain_pattern, pattern_type, cookies, active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      id,
+      config.label,
+      config.domainPattern,
+      config.patternType,
+      JSON.stringify(config.cookies || []),
+      config.active ? 1 : 0,
+      now,
+      now,
+    );
+
+    return id;
+  }
+
+  updateCookieMock(
+    id: string,
+    config: Partial<Omit<CookieMock, 'id' | 'createdAt' | 'updatedAt'>>,
+  ): boolean {
+    const now = Date.now();
+    const updateFields: string[] = [];
+    const params: Array<string | number | boolean> = [];
+
+    if (config.label !== undefined) {
+      updateFields.push('label = ?');
+      params.push(config.label);
+    }
+
+    if (config.domainPattern !== undefined) {
+      updateFields.push('domain_pattern = ?');
+      params.push(config.domainPattern);
+    }
+
+    if (config.patternType !== undefined) {
+      updateFields.push('pattern_type = ?');
+      params.push(config.patternType);
+    }
+
+    if (config.cookies !== undefined) {
+      updateFields.push('cookies = ?');
+      params.push(JSON.stringify(config.cookies));
+    }
+
+    if (config.active !== undefined) {
+      updateFields.push('active = ?');
+      params.push(config.active ? 1 : 0);
+    }
+
+    updateFields.push('updated_at = ?');
+    params.push(now);
+    params.push(id);
+
+    if (updateFields.length === 1) {
+      // Only updated_at
+      return false;
+    }
+
+    const query = `
+      UPDATE cookie_mocks
+      SET ${updateFields.join(', ')}
+      WHERE id = ?
+    `;
+
+    const stmt = this.db.prepare(query);
+    const result = stmt.run(...params);
+    return result.changes > 0;
+  }
+
+  getCookieMocks(active?: boolean): CookieMock[] {
+    let query = `
+      SELECT 
+        id, label, domain_pattern as domainPattern,
+        pattern_type as patternType, cookies, active,
+        created_at as createdAt, updated_at as updatedAt
+      FROM cookie_mocks
+    `;
+
+    if (active !== undefined) {
+      query += ` WHERE active = ${active ? 1 : 0}`;
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const stmt = this.db.prepare(query);
+    const results = stmt.all() as Array<
+      Omit<CookieMock, 'active' | 'cookies'> & {
+        active: number;
+        cookies: string;
+      }
+    >;
+
+    return results
+      .map((row) => this.mapCookieMockRow(row))
+      .filter((row): row is CookieMock => row !== null);
+  }
+
+  getActiveCookieMocks(): CookieMock[] {
+    return this.getCookieMocks(true);
+  }
+
+  getCookieMockById(id: string): CookieMock | null {
+    const stmt = this.db.prepare(`
+      SELECT 
+        id, label, domain_pattern as domainPattern,
+        pattern_type as patternType, cookies, active,
+        created_at as createdAt, updated_at as updatedAt
+      FROM cookie_mocks
+      WHERE id = ?
+    `);
+
+    const result = stmt.get(id) as
+      | (Omit<CookieMock, 'active' | 'cookies'> & {
+          active: number;
+          cookies: string;
+        })
+      | null;
+
+    return this.mapCookieMockRow(result);
+  }
+
+  deleteCookieMock(id: string): boolean {
+    const stmt = this.db.prepare('DELETE FROM cookie_mocks WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
   }

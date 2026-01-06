@@ -6,6 +6,7 @@ A powerful TypeScript-based HTTP proxy with request interception, mock engine, a
 
 - 🔄 **HTTP Proxy**: Intercept and forward HTTP requests to target servers
 - 🎭 **Mock Engine**: Create and manage mock HTTP responses
+- 🍪 **Cookie Overrides**: Define secure, domain-aware cookie mocks with metadata
 - 📝 **Request Logging**: Track all intercepted requests with detailed information
 - 🖥️ **Web Dashboard**: Server-side rendered interface for managing mocks and viewing logs
 - ⚡ **High Performance**: Built with MVC architecture using EJS templates

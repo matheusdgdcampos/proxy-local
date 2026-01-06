@@ -1,11 +1,74 @@
 import { type Request, type Response, Router } from 'express';
 import { type AppConfig, loadConfig, saveConfig } from '../config';
-import { dbService, type RequestLog } from '../db/database';
+import {
+  type CookieDefinition,
+  type CookieMock,
+  dbService,
+  type RequestLog,
+} from '../db/database';
+import { cookieMockEngine } from '../mocks/cookieMockEngine';
 import { mockEngine } from '../mocks/mockEngine';
 import { logger } from '../utils/logger';
 
 // Cria o router para a API do dashboard
 export const apiRouter = Router();
+function normalizeCookieDefinitions(input: unknown): CookieDefinition[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return input
+    .map((item) => {
+      const raw = item ?? {};
+      const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+      const value = raw.value ?? '';
+
+      const expires =
+        raw.expires === null || raw.expires === undefined
+          ? undefined
+          : Number(raw.expires);
+
+      const sameSiteValues = new Set(['Strict', 'Lax', 'None']);
+      const sameSite =
+        typeof raw.sameSite === 'string' && sameSiteValues.has(raw.sameSite)
+          ? raw.sameSite
+          : undefined;
+
+      return {
+        name,
+        value,
+        domain:
+          typeof raw.domain === 'string' && raw.domain.trim().length > 0
+            ? raw.domain.trim()
+            : undefined,
+        path:
+          typeof raw.path === 'string' && raw.path.trim().length > 0
+            ? raw.path.trim()
+            : undefined,
+        expires: Number.isFinite(expires) ? expires : undefined,
+        httpOnly: Boolean(raw.httpOnly),
+        secure: Boolean(raw.secure),
+        sameSite,
+      } satisfies CookieDefinition;
+    })
+    .filter((cookie) => cookie.name && cookie.value !== undefined);
+}
+
+function validateCookiePayload(payload: CookieDefinition[]): {
+  valid: boolean;
+  message?: string;
+} {
+  for (const cookie of payload) {
+    if (cookie.sameSite === 'None' && cookie.secure !== true) {
+      return {
+        valid: false,
+        message: 'SameSite=None cookies must be marked as Secure',
+      };
+    }
+  }
+
+  return { valid: true };
+}
 
 // SSE clients management
 const sseClients = new Set<Response>();
@@ -219,6 +282,157 @@ apiRouter.delete('/mocks/:id', (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Error deleting mock', { error, id: req.params.id });
     res.status(500).json({ success: false, error: 'Failed to delete mock' });
+  }
+});
+
+// Cookie mock endpoints
+apiRouter.get('/cookie-mocks', (_req: Request, res: Response) => {
+  try {
+    const mocks = cookieMockEngine.getAllMocks();
+    res.json({ success: true, data: mocks });
+  } catch (error) {
+    logger.error('Error fetching cookie mocks', { error });
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to fetch cookie mocks' });
+  }
+});
+
+apiRouter.get('/cookie-mocks/:id', (req: Request, res: Response) => {
+  try {
+    const mock = cookieMockEngine.getMockById(req.params.id);
+    if (!mock) {
+      return res
+        .status(404)
+        .json({ success: false, error: 'Cookie mock not found' });
+    }
+    res.json({ success: true, data: mock });
+  } catch (error) {
+    logger.error('Error fetching cookie mock', { error, id: req.params.id });
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to fetch cookie mock' });
+  }
+});
+
+apiRouter.post('/cookie-mocks', (req: Request, res: Response) => {
+  try {
+    const { label, domainPattern, patternType, cookies, active } = req.body;
+
+    if (!label || !domainPattern) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: label, domainPattern',
+      });
+    }
+
+    const normalizedType =
+      patternType === 'regex' ? 'regex' : ('wildcard' as const);
+    const normalizedCookies = normalizeCookieDefinitions(cookies);
+    const validation = validateCookiePayload(normalizedCookies);
+
+    if (!validation.valid) {
+      return res
+        .status(400)
+        .json({ success: false, error: validation.message });
+    }
+
+    if (normalizedCookies.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one cookie definition is required',
+      });
+    }
+
+    const mockId = cookieMockEngine.createMock({
+      label,
+      domainPattern,
+      patternType: normalizedType,
+      cookies: normalizedCookies,
+      active: active !== undefined ? Boolean(active) : true,
+    });
+
+    if (!mockId) {
+      return res
+        .status(500)
+        .json({ success: false, error: 'Failed to create cookie mock' });
+    }
+
+    res.status(201).json({ success: true, data: { id: mockId } });
+  } catch (error) {
+    logger.error('Error creating cookie mock', { error });
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to create cookie mock' });
+  }
+});
+
+apiRouter.put('/cookie-mocks/:id', (req: Request, res: Response) => {
+  try {
+    const { label, domainPattern, patternType, cookies, active } = req.body;
+
+    const updatePayload: Partial<
+      Omit<CookieMock, 'id' | 'createdAt' | 'updatedAt'>
+    > = {};
+
+    if (label !== undefined) updatePayload.label = label;
+    if (domainPattern !== undefined)
+      updatePayload.domainPattern = domainPattern;
+    if (patternType !== undefined) {
+      updatePayload.patternType =
+        patternType === 'regex' ? 'regex' : 'wildcard';
+    }
+    if (active !== undefined) updatePayload.active = Boolean(active);
+
+    if (cookies !== undefined) {
+      const normalizedCookies = normalizeCookieDefinitions(cookies);
+      const validation = validateCookiePayload(normalizedCookies);
+      if (!validation.valid) {
+        return res
+          .status(400)
+          .json({ success: false, error: validation.message });
+      }
+      if (normalizedCookies.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'At least one cookie definition is required',
+        });
+      }
+      updatePayload.cookies = normalizedCookies;
+    }
+
+    const updated = cookieMockEngine.updateMock(req.params.id, updatePayload);
+
+    if (!updated) {
+      return res
+        .status(404)
+        .json({ success: false, error: 'Cookie mock not found or no changes' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error updating cookie mock', { error, id: req.params.id });
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to update cookie mock' });
+  }
+});
+
+apiRouter.delete('/cookie-mocks/:id', (req: Request, res: Response) => {
+  try {
+    const deleted = cookieMockEngine.deleteMock(req.params.id);
+    if (!deleted) {
+      return res
+        .status(404)
+        .json({ success: false, error: 'Cookie mock not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error deleting cookie mock', { error, id: req.params.id });
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to delete cookie mock' });
   }
 });
 

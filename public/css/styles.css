@@ -1090,6 +1090,49 @@ tr.log-updated {
   margin-top: 8px;
 }
 
+/* Cookie mock builder */
+.cookie-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cookie-item {
+  border: 1px solid #e1e5eb;
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  background-color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.cookie-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cookie-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cookie-meta .form-check {
+  margin: 0;
+}
+
+.cookie-detail {
+  border: 1px dashed #dcdfe6;
+  border-radius: var(--border-radius);
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background-color: #fdfdfd;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .stats-grid {

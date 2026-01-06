@@ -311,7 +311,7 @@ async function submitMockForm(mockId = null) {
     if (headers) {
       JSON.parse(headers);
     }
-  } catch (error) {
+  } catch (_error) {
     Toast.error('Invalid JSON in headers field');
     return;
   }
@@ -319,7 +319,7 @@ async function submitMockForm(mockId = null) {
   const data = {
     url: formData.get('url'),
     method: formData.get('method'),
-    statusCode: parseInt(formData.get('statusCode')),
+    statusCode: parseInt(formData.get('statusCode'), 10),
     headers: formData.get('headers'),
     body: formData.get('body'),
     active: formData.get('active') === 'true',
@@ -781,6 +781,9 @@ function getSuccessMessage(key) {
     'mock-toggled': 'Mock status toggled successfully!',
     'logs-cleared': 'Logs cleared successfully!',
     saved: 'Settings saved successfully!',
+    'cookie-mock-created': 'Cookie mock created successfully!',
+    'cookie-mock-updated': 'Cookie mock updated successfully!',
+    'cookie-mock-deleted': 'Cookie mock deleted successfully!',
   };
   return messages[key] || 'Operation completed successfully!';
 }
@@ -796,6 +799,345 @@ function getErrorMessage(key) {
     'failed-to-create-mock': 'Failed to create mock from log',
     'failed-to-clear-logs': 'Failed to clear logs',
     failed: 'Operation failed',
+    'cookie-mock-validation': 'Cookie mock validation failed',
+    'cookie-mock-not-found': 'Cookie mock not found',
   };
   return messages[key] || 'An error occurred';
+}
+
+// Cookie mock helpers
+async function openCookieMockModal(mockId = null) {
+  let mock = null;
+
+  if (mockId) {
+    try {
+      const response = await fetch(`/api/cookie-mocks/${mockId}`);
+      const data = await response.json();
+      if (!data.success) {
+        Toast.error(data.error || 'Failed to load cookie mock');
+        return;
+      }
+      mock = data.data;
+    } catch (error) {
+      console.error('Error loading cookie mock', error);
+      Toast.error('Failed to load cookie mock');
+      return;
+    }
+  }
+
+  const content = document.createElement('form');
+  content.id = 'cookie-mock-form';
+  content.innerHTML = `
+    <div class="form-group">
+      <label class="form-label">Label</label>
+      <input type="text" name="label" class="form-control" value="${mock?.label || ''}" required placeholder="Session cookies">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Domain Pattern</label>
+      <input type="text" name="domainPattern" class="form-control" value="${mock?.domainPattern || ''}" required placeholder="*.example.com">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Pattern Type</label>
+      <select name="patternType" class="form-control">
+        <option value="wildcard" ${mock?.patternType !== 'regex' ? 'selected' : ''}>Wildcard</option>
+        <option value="regex" ${mock?.patternType === 'regex' ? 'selected' : ''}>Regex</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Cookie Definitions</label>
+      <div id="cookie-items" class="cookie-items"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="add-cookie-item">+ Add Cookie</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-check">
+        <input type="checkbox" name="active" value="true" ${mock?.active !== false ? 'checked' : ''}>
+        <span>Active</span>
+      </label>
+    </div>
+  `;
+
+  const list = content.querySelector('#cookie-items');
+  const cookies = mock?.cookies?.length ? mock.cookies : [createEmptyCookie()];
+  cookies.forEach((cookie) => {
+    list.appendChild(renderCookieItem(cookie));
+  });
+
+  content.querySelector('#add-cookie-item').addEventListener('click', () => {
+    list.appendChild(renderCookieItem(createEmptyCookie()));
+  });
+
+  const actions = [
+    { label: 'Cancel', onClick: () => Modal.close() },
+    {
+      label: mockId ? 'Update Cookie Mock' : 'Create Cookie Mock',
+      className: 'btn btn-primary',
+      onClick: () => submitCookieMockForm(mockId),
+    },
+  ];
+
+  Modal.open(
+    mockId ? 'Edit Cookie Mock' : 'Create Cookie Mock',
+    content,
+    actions,
+  );
+}
+
+function createEmptyCookie() {
+  return {
+    name: '',
+    value: '',
+    domain: '',
+    path: '/',
+    expires: '',
+    httpOnly: true,
+    secure: false,
+    sameSite: 'Lax',
+  };
+}
+
+function renderCookieItem(cookie) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'cookie-item';
+  wrapper.innerHTML = `
+    <div class="cookie-grid">
+      <div>
+        <label class="form-label">Name</label>
+        <input type="text" name="cookie-name" class="form-control" value="${cookie.name || ''}" required>
+      </div>
+      <div>
+        <label class="form-label">Value</label>
+        <input type="text" name="cookie-value" class="form-control" value="${cookie.value || ''}" required>
+      </div>
+    </div>
+
+    <div class="cookie-grid">
+      <div>
+        <label class="form-label">Domain</label>
+        <input type="text" name="cookie-domain" class="form-control" value="${cookie.domain || ''}" placeholder="example.com">
+      </div>
+      <div>
+        <label class="form-label">Path</label>
+        <input type="text" name="cookie-path" class="form-control" value="${cookie.path || '/'}" placeholder="/">
+      </div>
+    </div>
+
+    <div class="cookie-grid">
+      <div>
+        <label class="form-label">Expires</label>
+        <input type="datetime-local" name="cookie-expires" class="form-control" value="${formatDateTimeInput(cookie.expires)}">
+      </div>
+      <div>
+        <label class="form-label">SameSite</label>
+        <select name="cookie-samesite" class="form-control">
+          <option value="" ${!cookie.sameSite ? 'selected' : ''}>Default</option>
+          <option value="Lax" ${cookie.sameSite === 'Lax' ? 'selected' : ''}>Lax</option>
+          <option value="Strict" ${cookie.sameSite === 'Strict' ? 'selected' : ''}>Strict</option>
+          <option value="None" ${cookie.sameSite === 'None' ? 'selected' : ''}>None</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="cookie-meta">
+      <label class="form-check">
+        <input type="checkbox" name="cookie-httponly" ${cookie.httpOnly ? 'checked' : ''}>
+        <span>HttpOnly</span>
+      </label>
+      <label class="form-check">
+        <input type="checkbox" name="cookie-secure" ${cookie.secure ? 'checked' : ''}>
+        <span>Secure</span>
+      </label>
+      <button type="button" class="btn btn-danger btn-sm cookie-remove">Remove</button>
+    </div>
+  `;
+
+  wrapper.querySelector('.cookie-remove').addEventListener('click', () => {
+    wrapper.remove();
+    const list = document.getElementById('cookie-items');
+    if (list && list.querySelectorAll('.cookie-item').length === 0) {
+      list.appendChild(renderCookieItem(createEmptyCookie()));
+    }
+  });
+
+  return wrapper;
+}
+
+function formatDateTimeInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function collectCookieMockPayload() {
+  const form = document.getElementById('cookie-mock-form');
+  const formData = new FormData(form);
+  const items = [...form.querySelectorAll('.cookie-item')];
+
+  const cookies = items
+    .map((item) => {
+      const getValue = (selector) => {
+        const field = item.querySelector(selector);
+        return field ? field.value : '';
+      };
+
+      const expiresRaw = getValue('input[name="cookie-expires"]');
+      const expires = expiresRaw ? new Date(expiresRaw).getTime() : undefined;
+
+      return {
+        name: getValue('input[name="cookie-name"]').trim(),
+        value: getValue('input[name="cookie-value"]'),
+        domain: getValue('input[name="cookie-domain"]').trim(),
+        path: getValue('input[name="cookie-path"]').trim() || '/',
+        expires: Number.isFinite(expires) ? expires : undefined,
+        httpOnly: item.querySelector('input[name="cookie-httponly"]').checked,
+        secure: item.querySelector('input[name="cookie-secure"]').checked,
+        sameSite: item.querySelector('select[name="cookie-samesite"]').value,
+      };
+    })
+    .filter((cookie) => cookie.name && cookie.value !== '');
+
+  return {
+    label: formData.get('label'),
+    domainPattern: formData.get('domainPattern'),
+    patternType: formData.get('patternType'),
+    active: formData.get('active') === 'true',
+    cookies,
+  };
+}
+
+async function submitCookieMockForm(mockId = null) {
+  const payload = collectCookieMockPayload();
+
+  if (
+    !payload.label ||
+    !payload.domainPattern ||
+    payload.cookies.length === 0
+  ) {
+    Toast.error('Please fill label, domain pattern, and at least one cookie');
+    return;
+  }
+
+  const insecureSameSite = payload.cookies.some(
+    (cookie) => cookie.sameSite === 'None' && !cookie.secure,
+  );
+  if (insecureSameSite) {
+    Toast.error('SameSite=None cookies must be Secure');
+    return;
+  }
+
+  try {
+    const url = mockId ? `/api/cookie-mocks/${mockId}` : '/api/cookie-mocks';
+    const method = mockId ? 'PUT' : 'POST';
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      Toast.success(
+        mockId
+          ? 'Cookie mock updated successfully!'
+          : 'Cookie mock created successfully!',
+      );
+      Modal.close();
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      Toast.error(data.error || 'Failed to save cookie mock');
+    }
+  } catch (error) {
+    console.error('Error saving cookie mock', error);
+    Toast.error('Failed to save cookie mock');
+  }
+}
+
+async function showCookieMockDetail(mockId) {
+  try {
+    const response = await fetch(`/api/cookie-mocks/${mockId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      Toast.error(data.error || 'Failed to load cookie mock');
+      return;
+    }
+
+    const mock = data.data;
+    const cookiesList = mock.cookies
+      .map((cookie) => {
+        return `
+          <div class="detail-section cookie-detail">
+            <p><strong>${cookie.name}</strong> = ${cookie.value}</p>
+            <p><small>Domain: ${cookie.domain || 'n/a'} | Path: ${cookie.path || '/'}</small></p>
+            <p><small>Secure: ${cookie.secure ? 'yes' : 'no'} | HttpOnly: ${cookie.httpOnly ? 'yes' : 'no'} | SameSite: ${cookie.sameSite || 'default'}</small></p>
+            ${cookie.expires ? `<p><small>Expires: ${new Date(cookie.expires).toLocaleString()}</small></p>` : ''}
+          </div>
+        `;
+      })
+      .join('');
+
+    const content = `
+      <div class="mock-detail">
+        <div class="detail-section">
+          <h4>Information</h4>
+          <p><strong>Label:</strong> ${mock.label}</p>
+          <p><strong>Domain Pattern:</strong> ${mock.domainPattern}</p>
+          <p><strong>Pattern Type:</strong> ${mock.patternType}</p>
+          <p><strong>Status:</strong> ${mock.active ? 'Active' : 'Inactive'}</p>
+        </div>
+        <div class="detail-section">
+          <h4>Cookies (${mock.cookies.length})</h4>
+          ${cookiesList}
+        </div>
+      </div>
+    `;
+
+    Modal.open(`Cookie Mock: ${mock.label}`, content);
+  } catch (error) {
+    console.error('Error showing cookie mock detail', error);
+    Toast.error('Failed to load cookie mock');
+  }
+}
+
+async function deleteCookieMock(mockId) {
+  if (!confirm('Delete this cookie mock?')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/cookie-mocks/${mockId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    if (data.success) {
+      Toast.success('Cookie mock deleted successfully!');
+      setTimeout(() => window.location.reload(), 800);
+    } else {
+      Toast.error(data.error || 'Failed to delete cookie mock');
+    }
+  } catch (error) {
+    console.error('Error deleting cookie mock', error);
+    Toast.error('Failed to delete cookie mock');
+  }
+}
+
+const globalDashboardActions = {
+  showLogModal,
+  openMockFormModal,
+  showMockDetailModal,
+  showClearLogsModal,
+  openCookieMockModal,
+  showCookieMockDetail,
+  deleteCookieMock,
+};
+
+if (typeof window !== 'undefined') {
+  Object.entries(globalDashboardActions).forEach(([name, handler]) => {
+    window[name] = handler;
+  });
 }

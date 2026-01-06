@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { cookieMockEngine } from '../mocks/cookieMockEngine';
 import { mockEngine } from '../mocks/mockEngine';
 import { logger } from '../utils/logger';
 
@@ -25,6 +26,7 @@ class MocksController {
     try {
       const activeOnly = req.query.active === 'true';
       const mocks = mockEngine.getAllMocks(activeOnly);
+      const cookieMocks = cookieMockEngine.getAllMocks();
 
       const successMessage = req.query.success as string;
       const errorMessage = req.query.error as string;
@@ -32,6 +34,7 @@ class MocksController {
       res.render('mocks', {
         title: 'Mock Configurations - TS Mock Proxy',
         mocks,
+        cookieMocks,
         successMessage: this.getSuccessMessage(successMessage),
         errorMessage: this.getErrorMessage(errorMessage),
         activeOnly,
@@ -44,6 +47,7 @@ class MocksController {
       res.render('mocks', {
         title: 'Mock Configurations - TS Mock Proxy',
         mocks: [],
+        cookieMocks: [],
         successMessage: null,
         errorMessage: 'Failed to load mocks',
         activeOnly: false,
@@ -223,6 +227,9 @@ class MocksController {
       'mock-updated': 'Mock updated successfully!',
       'mock-deleted': 'Mock deleted successfully!',
       'mock-toggled': 'Mock status toggled successfully!',
+      'cookie-mock-created': 'Cookie mock created successfully!',
+      'cookie-mock-updated': 'Cookie mock updated successfully!',
+      'cookie-mock-deleted': 'Cookie mock deleted successfully!',
     };
     return key ? messages[key] || null : null;
   }
@@ -239,6 +246,8 @@ class MocksController {
       'failed-to-toggle': 'Failed to toggle mock status',
       'mock-not-found': 'Mock not found',
       'failed-to-create-mock': 'Failed to create mock from log',
+      'failed-to-load-cookie-mocks': 'Failed to load cookie mocks',
+      'cookie-mock-not-found': 'Cookie mock not found',
     };
     return key ? messages[key] || 'An unknown error occurred' : null;
   }

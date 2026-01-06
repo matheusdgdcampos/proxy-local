@@ -86,6 +86,61 @@
         <% } %>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Cookie Mock List</h2>
+        <div class="card-actions">
+          <button class="btn btn-primary" onclick="openCookieMockModal()">+ Add Cookie Mock</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <% if (cookieMocks && cookieMocks.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Label</th>
+                <th>Domain Pattern</th>
+                <th>Pattern Type</th>
+                <th>Cookies</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% cookieMocks.forEach(mock => { %>
+              <tr class="<%= mock.active ? '' : 'inactive-row' %>">
+                <td>
+                  <span class="status-toggle <%= mock.active ? 'active' : 'inactive' %>" title="<%= mock.active ? 'Active' : 'Inactive' %>">
+                    <%= mock.active ? '●' : '○' %>
+                  </span>
+                </td>
+                <td class="truncate" title="<%= mock.label %>"><%= mock.label %></td>
+                <td class="truncate" title="<%= mock.domainPattern %>"><%= mock.domainPattern %></td>
+                <td><span class="badge"><%= mock.patternType %></span></td>
+                <td><span class="badge badge-info"><%= mock.cookies.length %></span></td>
+                <td><%= new Date(mock.createdAt).toLocaleDateString() %></td>
+                <td>
+                  <button class="btn btn-sm btn-secondary" onclick="showCookieMockDetail('<%= mock.id %>')">View</button>
+                  <button class="btn btn-sm btn-primary" onclick="openCookieMockModal('<%= mock.id %>')">Edit</button>
+                  <button class="btn btn-sm btn-danger" onclick="deleteCookieMock('<%= mock.id %>')">Delete</button>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } else { %>
+        <div class="empty-state">
+          <p>No cookie mocks configured.</p>
+          <p class="text-muted">Create cookie overrides matched by domain pattern.</p>
+          <button class="btn btn-primary mt-3" onclick="openCookieMockModal()">+ Create Cookie Mock</button>
+        </div>
+        <% } %>
+      </div>
+    </div>
   </main>
   
   <%- include('partials/footer') %>

@@ -5,6 +5,7 @@ import {
   type RequestHandler,
 } from 'http-proxy-middleware';
 import { dbService, type RequestLog } from '../db/database';
+import { cookieMockEngine } from '../mocks/cookieMockEngine';
 import { mockEngine } from '../mocks/mockEngine';
 import { logger } from '../utils/logger';
 
@@ -25,9 +26,11 @@ export interface ProxyConfig {
 export class ProxyService {
   private proxyMiddleware: RequestHandler;
   private config: ProxyConfig;
+  private targetIsSecure: boolean;
 
   constructor(config: ProxyConfig) {
     this.config = config;
+    this.targetIsSecure = /^https:/i.test(config.target);
     this.proxyMiddleware = this.createProxyMiddleware();
   }
 
@@ -103,6 +106,8 @@ export class ProxyService {
     req.proxyStartTime = Date.now();
     req.originalBody = requestBody;
 
+    this.applyCookieStrategy(proxyReq, req);
+
     // Log the proxied request (mocks are already handled in mockCheckMiddleware)
     if (this.shouldLogRequest(req.url)) {
       logger.info(`Proxying ${req.method} ${req.url} to ${this.config.target}`);
@@ -118,6 +123,46 @@ export class ProxyService {
       const logId = dbService.saveRequestLog(requestLog);
       req.requestLogId = logId;
     }
+  }
+
+  private applyCookieStrategy(
+    proxyReq: ClientRequest,
+    req: ExtendedRequest,
+  ): void {
+    const hostHeader = req.headers.host;
+    const path = typeof req.path === 'string' ? req.path : req.url;
+    const mockedCookies = cookieMockEngine.resolveCookiesForRequest(
+      hostHeader,
+      path,
+      this.targetIsSecure,
+    );
+
+    if (mockedCookies.length > 0) {
+      const cookieHeader = mockedCookies
+        .map((cookie) => `${cookie.name}=${cookie.value}`)
+        .join('; ');
+      proxyReq.setHeader('cookie', cookieHeader);
+      logger.info('Applied mocked cookies to outbound request', {
+        url: req.url,
+        cookieCount: mockedCookies.length,
+      });
+      return;
+    }
+
+    const originalCookies = this.normalizeIncomingCookies(req.headers.cookie);
+    if (originalCookies) {
+      proxyReq.setHeader('cookie', originalCookies);
+    }
+  }
+
+  private normalizeIncomingCookies(
+    cookieHeader: string | string[] | undefined,
+  ): string | undefined {
+    if (!cookieHeader) return undefined;
+    if (Array.isArray(cookieHeader)) {
+      return cookieHeader.join('; ');
+    }
+    return cookieHeader;
   }
 
   private handleProxyResponse(
