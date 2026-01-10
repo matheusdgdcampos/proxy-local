@@ -6,6 +6,7 @@ A powerful TypeScript-based HTTP proxy with request interception, mock engine, a
 
 - 🔄 **HTTP Proxy**: Intercept and forward HTTP requests to target servers
 - 🎭 **Mock Engine**: Create and manage mock HTTP responses
+- 🔀 **Dynamic URL Parameters**: Support for path parameters (`:id`) and automatic query param handling
 - 🍪 **Cookie Overrides**: Define secure, domain-aware cookie mocks with metadata
 - 📝 **Request Logging**: Track all intercepted requests with detailed information
 - 🖥️ **Web Dashboard**: Server-side rendered interface for managing mocks and viewing logs
@@ -152,18 +153,44 @@ You can create mocks directly from logged requests.
 
 ### Mock Configurations
 
-Manage HTTP response mocks:
+Manage HTTP response mocks with flexible pattern matching:
 
 - Create new mocks with custom responses
 - Edit existing mocks
 - Toggle active/inactive status
 - Delete mocks
 - Configure:
-  - URL pattern matching
+  - **URL pattern matching** (exact or dynamic with parameters)
   - HTTP method
   - Response status code
   - Response headers (JSON)
   - Response body
+
+#### Dynamic URL Parameters
+
+The mock system supports dynamic URL parameters for flexible matching:
+
+**Example 1: Path Parameters**
+```
+Pattern: /api/users/:id
+Matches: /api/users/123, /api/users/abc, /api/users/xyz123
+```
+
+**Example 2: Multiple Parameters**
+```
+Pattern: /api/products/:productId/reviews/:reviewId
+Matches: /api/products/100/reviews/1, /api/products/abc/reviews/xyz
+```
+
+**Example 3: Query Params (automatically handled)**
+```
+Pattern: /api/search
+Matches: /api/search, /api/search?q=test, /api/search?q=test&page=1
+```
+
+All query parameters are automatically ignored during matching, allowing the same mock to handle requests with any query string variations.
+
+For detailed information, see [DYNAMIC_MOCKS.md](DYNAMIC_MOCKS.md).
 
 ### Settings
 

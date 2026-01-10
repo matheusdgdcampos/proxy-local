@@ -300,6 +300,14 @@ body {
   font-weight: 500;
 }
 
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
 .form-control {
   display: block;
   width: 100%;

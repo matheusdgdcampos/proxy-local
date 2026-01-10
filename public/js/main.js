@@ -251,7 +251,8 @@ async function openMockFormModal(mockId = null) {
   content.innerHTML = `
     <div class="form-group">
       <label class="form-label">URL Pattern</label>
-      <input type="text" name="url" class="form-control" value="${mock?.url || ''}" required placeholder="/api/users">
+      <input type="text" name="url" class="form-control" value="${mock?.url || ''}" required placeholder="/api/users or /api/users/:id">
+      <small class="form-hint">Use :param for dynamic path parameters (e.g., /users/:id/posts/:postId). The system automatically detects if your URL is dynamic.</small>
     </div>
     
     <div class="form-group">
@@ -372,6 +373,7 @@ async function showMockDetailModal(mockId) {
           <p><strong>Status:</strong> <span class="badge ${mock.active ? 'badge-success' : 'badge-secondary'}">${mock.active ? 'Active' : 'Inactive'}</span></p>
           <p><strong>Method:</strong> <span class="badge badge-method-${mock.method.toLowerCase()}">${mock.method}</span></p>
           <p><strong>URL Pattern:</strong> ${mock.url}</p>
+          <p><strong>Pattern Type:</strong> <span class="badge">${mock.patternType || 'exact'}</span></p>
           <p><strong>Response Code:</strong> <span class="badge badge-status-${Math.floor(mock.statusCode / 100)}xx">${mock.statusCode}</span></p>
         </div>
         

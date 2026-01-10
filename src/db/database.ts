@@ -41,6 +41,7 @@ export interface MockConfig {
   headers: string;
   body: string;
   active: boolean;
+  patternType: 'exact' | 'dynamic';
   createdAt: number;
   updatedAt: number;
 }
@@ -90,6 +91,7 @@ class DatabaseService {
     this.createMockConfigsTable();
     this.createCookieMocksTable();
     this.ensureCookieMocksSchema();
+    this.ensureMockConfigsSchema();
     this.createIndexes();
   }
 
@@ -120,6 +122,7 @@ class DatabaseService {
         headers TEXT NOT NULL,
         body TEXT,
         active INTEGER NOT NULL DEFAULT 1,
+        pattern_type TEXT NOT NULL DEFAULT 'exact',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -170,6 +173,26 @@ class DatabaseService {
     if (hasMissingColumns) {
       this.db.exec('DROP TABLE IF EXISTS cookie_mocks');
       this.createCookieMocksTable();
+    }
+  }
+
+  private ensureMockConfigsSchema(): void {
+    const columns = this.db
+      .prepare('PRAGMA table_info(mock_configs)')
+      .all() as Array<{ name: string }>;
+
+    if (columns.length === 0) {
+      return;
+    }
+
+    const existingColumns = new Set(columns.map((column) => column.name));
+
+    // Adicionar pattern_type se não existir
+    if (!existingColumns.has('pattern_type')) {
+      this.db.exec(`
+        ALTER TABLE mock_configs 
+        ADD COLUMN pattern_type TEXT NOT NULL DEFAULT 'exact'
+      `);
     }
   }
 
@@ -298,17 +321,32 @@ class DatabaseService {
     return result.changes;
   }
 
+  /**
+   * Detecta automaticamente se uma URL contém parâmetros dinâmicos
+   * @param url URL pattern to check
+   * @returns 'dynamic' se contém :param, 'exact' caso contrário
+   */
+  private detectPatternType(url: string): 'exact' | 'dynamic' {
+    // Remove query params antes de verificar
+    const cleanUrl = url.split('?')[0];
+    // Verifica se contém parâmetros dinâmicos (:param)
+    return cleanUrl.includes(':') ? 'dynamic' : 'exact';
+  }
+
   // Métodos para configurações de mock
   saveMockConfig(
-    config: Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>,
+    config: Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt' | 'patternType'>,
   ): string {
     const id = uuidv4();
     const now = Date.now();
 
+    // Detecta automaticamente o tipo de pattern baseado na URL
+    const patternType = this.detectPatternType(config.url);
+
     const stmt = this.db.prepare(`
       INSERT INTO mock_configs (
-        id, url, method, status_code, headers, body, active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, url, method, status_code, headers, body, active, pattern_type, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -319,6 +357,7 @@ class DatabaseService {
       config.headers,
       config.body || '',
       config.active ? 1 : 0,
+      patternType,
       now,
       now,
     );
@@ -328,7 +367,9 @@ class DatabaseService {
 
   updateMockConfig(
     id: string,
-    config: Partial<Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>>,
+    config: Partial<
+      Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt' | 'patternType'>
+    >,
   ): boolean {
     const now = Date.now();
 
@@ -339,6 +380,10 @@ class DatabaseService {
     if (config.url !== undefined) {
       updateFields.push('url = ?');
       params.push(config.url);
+      // Se a URL mudou, re-detecta o pattern type automaticamente
+      const patternType = this.detectPatternType(config.url);
+      updateFields.push('pattern_type = ?');
+      params.push(patternType);
     }
 
     if (config.method !== undefined) {
@@ -394,7 +439,8 @@ class DatabaseService {
         id, url, method, 
         status_code as statusCode, 
         headers, body, 
-        active, 
+        active,
+        pattern_type as patternType,
         created_at as createdAt, 
         updated_at as updatedAt
       FROM mock_configs
@@ -424,7 +470,8 @@ class DatabaseService {
         id, url, method, 
         status_code as statusCode, 
         headers, body, 
-        active, 
+        active,
+        pattern_type as patternType,
         created_at as createdAt, 
         updated_at as updatedAt
       FROM mock_configs
@@ -450,25 +497,82 @@ class DatabaseService {
         id, url, method, 
         status_code as statusCode, 
         headers, body, 
-        active, 
+        active,
+        pattern_type as patternType,
         created_at as createdAt, 
         updated_at as updatedAt
       FROM mock_configs
-      WHERE url = ? AND method = ? AND active = 1
-      LIMIT 1
+      WHERE method = ? AND active = 1
+      ORDER BY created_at DESC
     `);
 
-    const result = stmt.get(url, method) as
-      | (Omit<MockConfig, 'active'> & { active: number })
-      | null;
+    const results = stmt.all(method) as Array<
+      Omit<MockConfig, 'active'> & { active: number }
+    >;
 
-    if (!result) return null;
+    // Remove query params from URL for matching
+    const cleanUrl = url.split('?')[0];
 
-    // Convert active from integer to boolean
-    return {
-      ...result,
-      active: result.active === 1,
-    };
+    // Try to find a matching mock
+    for (const row of results) {
+      const mockConfig = {
+        ...row,
+        active: row.active === 1,
+      };
+
+      if (mockConfig.patternType === 'exact') {
+        // Exact match (also remove query params from mock url)
+        const cleanMockUrl = mockConfig.url.split('?')[0];
+        if (cleanMockUrl === cleanUrl) {
+          return mockConfig;
+        }
+      } else if (mockConfig.patternType === 'dynamic') {
+        // Dynamic match with URL parameters
+        if (this.matchDynamicPattern(mockConfig.url, cleanUrl)) {
+          return mockConfig;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Matches a dynamic URL pattern against an actual URL
+   * Pattern: /users/:id/check
+   * URL: /users/12345/check
+   * Returns: true
+   */
+  private matchDynamicPattern(pattern: string, url: string): boolean {
+    // Remove query params from pattern
+    const cleanPattern = pattern.split('?')[0];
+
+    // Split both into segments
+    const patternSegments = cleanPattern.split('/').filter((s) => s);
+    const urlSegments = url.split('/').filter((s) => s);
+
+    // Must have same number of segments
+    if (patternSegments.length !== urlSegments.length) {
+      return false;
+    }
+
+    // Check each segment
+    for (let i = 0; i < patternSegments.length; i++) {
+      const patternSeg = patternSegments[i];
+      const urlSeg = urlSegments[i];
+
+      // If pattern segment starts with :, it's a parameter (matches anything)
+      if (patternSeg.startsWith(':')) {
+        continue;
+      }
+
+      // Otherwise, must match exactly
+      if (patternSeg !== urlSeg) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   deleteMockConfig(id: string): boolean {

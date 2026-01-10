@@ -46,6 +46,7 @@
                 <th>Status</th>
                 <th>Method</th>
                 <th>URL Pattern</th>
+                <th>Type</th>
                 <th>Response Code</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -63,6 +64,7 @@
                 </td>
                 <td><span class="badge badge-method-<%= mock.method.toLowerCase() %>"><%= mock.method %></span></td>
                 <td class="truncate" title="<%= mock.url %>"><%= mock.url %></td>
+                <td><span class="badge <%= mock.patternType === 'dynamic' ? 'badge-info' : '' %>"><%= mock.patternType || 'exact' %></span></td>
                 <td><span class="badge badge-status-<%= Math.floor(mock.statusCode / 100) %>xx"><%= mock.statusCode %></span></td>
                 <td><%= new Date(mock.createdAt).toLocaleDateString() %></td>
                 <td>
