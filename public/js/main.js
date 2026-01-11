@@ -944,7 +944,7 @@ function renderHeaderItem(header) {
   const wrapper = document.createElement('div');
   wrapper.className = 'header-item';
 
-  const datalistId = `header-suggestions-${Math.random().toString(36).substr(2, 9)}`;
+  const datalistId = `header-suggestions-${Math.random().toString(36).slice(2, 11)}`;
 
   wrapper.innerHTML = `
     <div class="header-grid">
