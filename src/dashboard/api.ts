@@ -123,11 +123,11 @@ function validateHeaders(headers: Record<string, string>): {
       };
     }
 
-    // Header names should not contain spaces or invalid characters
-    if (!/^[a-zA-Z0-9-_]+$/.test(key)) {
+    // Header names should not contain spaces or invalid characters (RFC 7230 tchar)
+    if (!/^[!#$%&'*+\-.0-9A-Z^_`a-z|~]+$/.test(key)) {
       return {
         valid: false,
-        message: `Invalid header name: "${key}". Header names should only contain letters, numbers, hyphens, and underscores.`,
+        message: `Invalid header name: "${key}". Header names must use only visible ASCII token characters and cannot contain spaces or control characters.`,
       };
     }
 
