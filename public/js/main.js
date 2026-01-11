@@ -272,8 +272,9 @@ async function openMockFormModal(mockId = null) {
     </div>
     
     <div class="form-group">
-      <label class="form-label">Response Headers (JSON)</label>
-      <textarea name="headers" class="form-control code-input" rows="4">${mock?.headers || '{"Content-Type": "application/json"}'}</textarea>
+      <label class="form-label">Response Headers</label>
+      <div id="header-items" class="header-items"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="add-header-item">+ Add Header</button>
     </div>
     
     <div class="form-group">
@@ -299,6 +300,34 @@ async function openMockFormModal(mockId = null) {
   ];
 
   Modal.open(isEdit ? 'Edit Mock' : 'Create Mock', content, actions);
+
+  // Initialize headers list
+  const headersList = content.querySelector('#header-items');
+  let headers = [];
+
+  if (mock?.headers) {
+    try {
+      const headersObj = JSON.parse(mock.headers);
+      headers = Object.entries(headersObj).map(([key, value]) => ({
+        key,
+        value,
+      }));
+    } catch {
+      headers = [createEmptyHeader()];
+    }
+  }
+
+  if (headers.length === 0) {
+    headers = [createEmptyHeader()];
+  }
+
+  headers.forEach((header) => {
+    headersList.appendChild(renderHeaderItem(header));
+  });
+
+  content.querySelector('#add-header-item').addEventListener('click', () => {
+    headersList.appendChild(renderHeaderItem(createEmptyHeader()));
+  });
 }
 
 // Submit Mock Form
@@ -306,14 +335,10 @@ async function submitMockForm(mockId = null) {
   const form = document.getElementById('mock-form');
   const formData = new FormData(form);
 
-  // Validate JSON fields
-  try {
-    const headers = formData.get('headers');
-    if (headers) {
-      JSON.parse(headers);
-    }
-  } catch (_error) {
-    Toast.error('Invalid JSON in headers field');
+  // Collect and validate headers
+  const headersResult = collectHeadersPayload(form);
+  if (!headersResult.valid) {
+    Toast.error(headersResult.error);
     return;
   }
 
@@ -321,7 +346,7 @@ async function submitMockForm(mockId = null) {
     url: formData.get('url'),
     method: formData.get('method'),
     statusCode: parseInt(formData.get('statusCode'), 10),
-    headers: formData.get('headers'),
+    headers: headersResult.headers,
     body: formData.get('body'),
     active: formData.get('active') === 'true',
   };
@@ -886,6 +911,139 @@ async function openCookieMockModal(mockId = null) {
     content,
     actions,
   );
+}
+
+function createEmptyHeader() {
+  return { key: '', value: '' };
+}
+
+function renderHeaderItem(header) {
+  const commonHeaders = [
+    'Content-Type',
+    'Authorization',
+    'Cache-Control',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Methods',
+    'Access-Control-Allow-Headers',
+    'Access-Control-Allow-Credentials',
+    'Content-Encoding',
+    'Accept',
+    'Accept-Encoding',
+    'Accept-Language',
+    'User-Agent',
+    'Cookie',
+    'Set-Cookie',
+    'Location',
+    'Referer',
+    'X-Requested-With',
+    'X-Frame-Options',
+    'X-Content-Type-Options',
+    'Strict-Transport-Security',
+  ];
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'header-item';
+
+  const datalistId = `header-suggestions-${Math.random().toString(36).slice(2, 11)}`;
+
+  wrapper.innerHTML = `
+    <div class="header-grid">
+      <div class="form-group">
+        <label class="form-label">Header Name</label>
+        <input 
+          type="text" 
+          name="header-key" 
+          class="form-control" 
+          value="${header.key || ''}" 
+          placeholder="e.g., Content-Type"
+          list="${datalistId}"
+          required>
+        <datalist id="${datalistId}">
+          ${commonHeaders.map((h) => `<option value="${h}">`).join('')}
+        </datalist>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Header Value</label>
+        <input 
+          type="text" 
+          name="header-value" 
+          class="form-control" 
+          value="${header.value || ''}" 
+          placeholder="e.g., application/json"
+          required>
+      </div>
+    </div>
+    <button type="button" class="btn btn-danger btn-sm header-remove">Remove</button>
+  `;
+
+  wrapper.querySelector('.header-remove').addEventListener('click', () => {
+    wrapper.remove();
+    const list = document.getElementById('header-items');
+    if (list && list.querySelectorAll('.header-item').length === 0) {
+      list.appendChild(renderHeaderItem(createEmptyHeader()));
+    }
+  });
+
+  return wrapper;
+}
+
+function collectHeadersPayload(form) {
+  const items = [...form.querySelectorAll('.header-item')];
+  const headersObj = {};
+  const seenKeys = new Set();
+
+  for (const item of items) {
+    const keyInput = item.querySelector('input[name="header-key"]');
+    const valueInput = item.querySelector('input[name="header-value"]');
+
+    const key = keyInput.value.trim();
+    const value = valueInput.value.trim();
+
+    // Skip empty rows
+    if (!key && !value) {
+      continue;
+    }
+
+    // Validate: não permitir chave vazia com valor
+    if (!key && value) {
+      return {
+        valid: false,
+        error: 'Header name cannot be empty when value is provided',
+      };
+    }
+
+    // Validate: não permitir valor vazio com chave
+    if (key && !value) {
+      return {
+        valid: false,
+        error: `Header "${key}" cannot have an empty value`,
+      };
+    }
+
+    // Validate: não permitir chaves duplicadas
+    if (seenKeys.has(key)) {
+      return {
+        valid: false,
+        error: `Duplicate header name: "${key}"`,
+      };
+    }
+
+    seenKeys.add(key);
+    headersObj[key] = value;
+  }
+
+  // Pelo menos um header deve ser fornecido se houver itens não-vazios
+  if (Object.keys(headersObj).length === 0) {
+    return {
+      valid: false,
+      error: 'At least one header is required',
+    };
+  }
+
+  return {
+    valid: true,
+    headers: JSON.stringify(headersObj),
+  };
 }
 
 function createEmptyCookie() {
