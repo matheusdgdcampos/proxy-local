@@ -70,6 +70,80 @@ function validateCookiePayload(payload: CookieDefinition[]): {
   return { valid: true };
 }
 
+function normalizeHeaders(input: unknown): Record<string, string> {
+  // If it's a string, try to parse as JSON
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
+        return parsed as Record<string, string>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
+
+  // If it's already an object
+  if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (typeof key === 'string' && key.trim()) {
+        result[key.trim()] = String(value);
+      }
+    }
+    return result;
+  }
+
+  return {};
+}
+
+function validateHeaders(headers: Record<string, string>): {
+  valid: boolean;
+  message?: string;
+} {
+  // Check for empty object
+  if (Object.keys(headers).length === 0) {
+    return {
+      valid: false,
+      message: 'At least one header is required',
+    };
+  }
+
+  // Validate header names (basic check for invalid characters)
+  for (const key of Object.keys(headers)) {
+    if (!key || !key.trim()) {
+      return {
+        valid: false,
+        message: 'Header names cannot be empty',
+      };
+    }
+
+    // Header names should not contain spaces or invalid characters
+    if (!/^[a-zA-Z0-9-_]+$/.test(key)) {
+      return {
+        valid: false,
+        message: `Invalid header name: "${key}". Header names should only contain letters, numbers, hyphens, and underscores.`,
+      };
+    }
+
+    // Check for empty values
+    const value = headers[key];
+    if (value === undefined || value === null || value.trim() === '') {
+      return {
+        valid: false,
+        message: `Header "${key}" cannot have an empty value`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
 // SSE clients management
 const sseClients = new Set<Response>();
 
@@ -226,11 +300,22 @@ apiRouter.post('/mocks', (req: Request, res: Response) => {
       });
     }
 
+    // Normalize and validate headers
+    const normalizedHeaders = normalizeHeaders(headers);
+    const validation = validateHeaders(normalizedHeaders);
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.message,
+      });
+    }
+
     const mockId = mockEngine.recordMock({
       url,
       method,
       statusCode,
-      headers: headers || '{}',
+      headers: JSON.stringify(normalizedHeaders),
       body: body || '',
       active: active !== undefined ? active : true,
     });
@@ -249,11 +334,28 @@ apiRouter.post('/mocks', (req: Request, res: Response) => {
 apiRouter.put('/mocks/:id', (req: Request, res: Response) => {
   try {
     const { url, method, statusCode, headers, body, active } = req.body;
+
+    // Normalize and validate headers if provided
+    let normalizedHeaders: string | undefined;
+    if (headers !== undefined) {
+      const headersObj = normalizeHeaders(headers);
+      const validation = validateHeaders(headersObj);
+
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.message,
+        });
+      }
+
+      normalizedHeaders = JSON.stringify(headersObj);
+    }
+
     const result = mockEngine.updateMock(req.params.id, {
       url,
       method,
       statusCode,
-      headers,
+      headers: normalizedHeaders,
       body,
       active,
     });
