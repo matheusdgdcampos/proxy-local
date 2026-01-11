@@ -1,167 +1,204 @@
-<% const currentPage = 'mocks'; %>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %></title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/css/styles.css">
-</head>
-<body>
-  <%- include('partials/header') %>
-  <%- include('partials/nav') %>
-  
-  <main class="container main-content">
-    <div class="page-header">
-      <h1>Mock Configurations</h1>
-      <p>Manage HTTP response mocks</p>
-    </div>
+<% const currentPage='mocks' ; %>
+  <!DOCTYPE html>
+  <html lang="en">
 
-    <% if (successMessage) { %>
-    <div class="alert alert-success">
-      <%= successMessage %>
-    </div>
-    <% } %>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+      <%= title %>
+    </title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
 
-    <% if (errorMessage) { %>
-    <div class="alert alert-danger">
-      <%= errorMessage %>
-    </div>
-    <% } %>
+  <body>
+    <%- include('partials/header') %>
+      <%- include('partials/nav') %>
 
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Mock List</h2>
-        <div class="card-actions">
-          <button class="btn btn-primary" onclick="showCreateMockModal()">+ Add Mock</button>
-        </div>
-      </div>
-      <div class="card-body">
-        <% if (mocks && mocks.length > 0) { %>
-        <div class="table-responsive">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Method</th>
-                <th>URL Pattern</th>
-                <th>Response Code</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% mocks.forEach(mock => { %>
-              <tr class="<%= mock.active ? '' : 'inactive-row' %>">
-                <td>
-                  <form method="POST" action="/mocks/<%= mock.id %>/toggle" style="display: inline;">
-                    <button type="submit" class="status-toggle <%= mock.active ? 'active' : 'inactive' %>" title="<%= mock.active ? 'Deactivate' : 'Activate' %>">
-                      <%= mock.active ? '●' : '○' %>
-                    </button>
-                  </form>
-                </td>
-                <td><span class="badge badge-method-<%= mock.method.toLowerCase() %>"><%= mock.method %></span></td>
-                <td class="truncate" title="<%= mock.url %>"><%= mock.url %></td>
-                <td><span class="badge badge-status-<%= Math.floor(mock.statusCode / 100) %>xx"><%= mock.statusCode %></span></td>
-                <td><%= new Date(mock.createdAt).toLocaleDateString() %></td>
-                <td>
-                  <button class="btn btn-sm btn-secondary" onclick="viewMockDetails('<%= mock.id %>')">View</button>
-                  <button class="btn btn-sm btn-primary" onclick="editMock('<%= mock.id %>')">Edit</button>
-                  <form method="POST" action="/mocks/<%= mock.id %>/delete" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this mock?')">
-                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                  </form>
-                </td>
-              </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        </div>
-        <% } else { %>
-        <div class="empty-state">
-          <p>No mock configurations yet.</p>
-          <p class="text-muted">Create your first mock to start intercepting requests.</p>
-          <button class="btn btn-primary mt-3" onclick="showCreateMockModal()">+ Create First Mock</button>
-        </div>
-        <% } %>
-      </div>
-    </div>
+        <main class="container main-content">
+          <div class="page-header">
+            <h1>Mock Configurations</h1>
+            <p>Manage HTTP response mocks</p>
+          </div>
 
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Cookie Mock List</h2>
-        <div class="card-actions">
-          <button class="btn btn-primary" onclick="openCookieMockModal()">+ Add Cookie Mock</button>
-        </div>
-      </div>
-      <div class="card-body">
-        <% if (cookieMocks && cookieMocks.length > 0) { %>
-        <div class="table-responsive">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Label</th>
-                <th>Domain Pattern</th>
-                <th>Pattern Type</th>
-                <th>Cookies</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% cookieMocks.forEach(mock => { %>
-              <tr class="<%= mock.active ? '' : 'inactive-row' %>">
-                <td>
-                  <span class="status-toggle <%= mock.active ? 'active' : 'inactive' %>" title="<%= mock.active ? 'Active' : 'Inactive' %>">
-                    <%= mock.active ? '●' : '○' %>
-                  </span>
-                </td>
-                <td class="truncate" title="<%= mock.label %>"><%= mock.label %></td>
-                <td class="truncate" title="<%= mock.domainPattern %>"><%= mock.domainPattern %></td>
-                <td><span class="badge"><%= mock.patternType %></span></td>
-                <td><span class="badge badge-info"><%= mock.cookies.length %></span></td>
-                <td><%= new Date(mock.createdAt).toLocaleDateString() %></td>
-                <td>
-                  <button class="btn btn-sm btn-secondary" onclick="showCookieMockDetail('<%= mock.id %>')">View</button>
-                  <button class="btn btn-sm btn-primary" onclick="openCookieMockModal('<%= mock.id %>')">Edit</button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteCookieMock('<%= mock.id %>')">Delete</button>
-                </td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } else { %>
-        <div class="empty-state">
-          <p>No cookie mocks configured.</p>
-          <p class="text-muted">Create cookie overrides matched by domain pattern.</p>
-          <button class="btn btn-primary mt-3" onclick="openCookieMockModal()">+ Create Cookie Mock</button>
-        </div>
-        <% } %>
-      </div>
-    </div>
-  </main>
-  
-  <%- include('partials/footer') %>
-  
-  <div id="toast-container"></div>
-  <div id="modal-container"></div>
-  
-  <script src="/js/main.js"></script>
-  <script>
-    function showCreateMockModal() {
-      openMockFormModal();
-    }
+          <% if (successMessage) { %>
+            <div class="alert alert-success">
+              <%= successMessage %>
+            </div>
+            <% } %>
 
-    function editMock(mockId) {
-      openMockFormModal(mockId);
-    }
+              <% if (errorMessage) { %>
+                <div class="alert alert-danger">
+                  <%= errorMessage %>
+                </div>
+                <% } %>
 
-    function viewMockDetails(mockId) {
-      showMockDetailModal(mockId);
-    }
-  </script>
-</body>
-</html>
+                  <div class="card">
+                    <div class="card-header">
+                      <h2 class="card-title">Mock List</h2>
+                      <div class="card-actions">
+                        <button class="btn btn-primary" onclick="showCreateMockModal()">+ Add Mock</button>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <% if (mocks && mocks.length> 0) { %>
+                        <div class="table-responsive">
+                          <table class="table">
+                            <thead>
+                              <tr>
+                                <th>Status</th>
+                                <th>Method</th>
+                                <th>URL Pattern</th>
+                                <th>Type</th>
+                                <th>Response Code</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <% mocks.forEach(mock=> { %>
+                                <tr class="<%= mock.active ? '' : 'inactive-row' %>">
+                                  <td>
+                                    <form method="POST" action="/mocks/<%= mock.id %>/toggle" style="display: inline;">
+                                      <button type="submit"
+                                        class="status-toggle <%= mock.active ? 'active' : 'inactive' %>"
+                                        title="<%= mock.active ? 'Deactivate' : 'Activate' %>">
+                                        <%= mock.active ? '●' : '○' %>
+                                      </button>
+                                    </form>
+                                  </td>
+                                  <td><span class="badge badge-method-<%= mock.method.toLowerCase() %>">
+                                      <%= mock.method %>
+                                    </span></td>
+                                  <td class="truncate" title="<%= mock.url %>">
+                                    <%= mock.url %>
+                                  </td>
+                                  <td><span class="badge <%= mock.patternType === 'dynamic' ? 'badge-info' : '' %>">
+                                      <%= mock.patternType || 'exact' %>
+                                    </span></td>
+                                  <td><span class="badge badge-status-<%= Math.floor(mock.statusCode / 100) %>xx">
+                                      <%= mock.statusCode %>
+                                    </span></td>
+                                  <td>
+                                    <%= new Date(mock.createdAt).toLocaleDateString() %>
+                                  </td>
+                                  <td>
+                                    <button class="btn btn-sm btn-secondary"
+                                      onclick="viewMockDetails('<%= mock.id %>')">View</button>
+                                    <button class="btn btn-sm btn-primary"
+                                      onclick="editMock('<%= mock.id %>')">Edit</button>
+                                    <form method="POST" action="/mocks/<%= mock.id %>/delete" style="display: inline;"
+                                      onsubmit="return confirm('Are you sure you want to delete this mock?')">
+                                      <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                  </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <% } else { %>
+                          <div class="empty-state">
+                            <p>No mock configurations yet.</p>
+                            <p class="text-muted">Create your first mock to start intercepting requests.</p>
+                            <button class="btn btn-primary mt-3" onclick="showCreateMockModal()">+ Create First
+                              Mock</button>
+                          </div>
+                          <% } %>
+                    </div>
+                  </div>
 
+                  <div class="card">
+                    <div class="card-header">
+                      <h2 class="card-title">Cookie Mock List</h2>
+                      <div class="card-actions">
+                        <button class="btn btn-primary" onclick="openCookieMockModal()">+ Add Cookie Mock</button>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <% if (cookieMocks && cookieMocks.length> 0) { %>
+                        <div class="table-responsive">
+                          <table class="table">
+                            <thead>
+                              <tr>
+                                <th>Status</th>
+                                <th>Label</th>
+                                <th>Domain Pattern</th>
+                                <th>Pattern Type</th>
+                                <th>Cookies</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <% cookieMocks.forEach(mock=> { %>
+                                <tr class="<%= mock.active ? '' : 'inactive-row' %>">
+                                  <td>
+                                    <span class="status-toggle <%= mock.active ? 'active' : 'inactive' %>"
+                                      title="<%= mock.active ? 'Active' : 'Inactive' %>">
+                                      <%= mock.active ? '●' : '○' %>
+                                    </span>
+                                  </td>
+                                  <td class="truncate" title="<%= mock.label %>">
+                                    <%= mock.label %>
+                                  </td>
+                                  <td class="truncate" title="<%= mock.domainPattern %>">
+                                    <%= mock.domainPattern %>
+                                  </td>
+                                  <td><span class="badge">
+                                      <%= mock.patternType %>
+                                    </span></td>
+                                  <td><span class="badge badge-info">
+                                      <%= mock.cookies.length %>
+                                    </span></td>
+                                  <td>
+                                    <%= new Date(mock.createdAt).toLocaleDateString() %>
+                                  </td>
+                                  <td>
+                                    <button class="btn btn-sm btn-secondary"
+                                      onclick="showCookieMockDetail('<%= mock.id %>')">View</button>
+                                    <button class="btn btn-sm btn-primary"
+                                      onclick="openCookieMockModal('<%= mock.id %>')">Edit</button>
+                                    <button class="btn btn-sm btn-danger"
+                                      onclick="deleteCookieMock('<%= mock.id %>')">Delete</button>
+                                  </td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <% } else { %>
+                          <div class="empty-state">
+                            <p>No cookie mocks configured.</p>
+                            <p class="text-muted">Create cookie overrides matched by domain pattern.</p>
+                            <button class="btn btn-primary mt-3" onclick="openCookieMockModal()">+ Create Cookie
+                              Mock</button>
+                          </div>
+                          <% } %>
+                    </div>
+                  </div>
+        </main>
+
+        <%- include('partials/footer') %>
+
+          <div id="toast-container"></div>
+          <div id="modal-container"></div>
+
+          <script src="/js/main.js"></script>
+          <script>
+            function showCreateMockModal() {
+              openMockFormModal();
+            }
+
+            function editMock(mockId) {
+              openMockFormModal(mockId);
+            }
+
+            function viewMockDetails(mockId) {
+              showMockDetailModal(mockId);
+            }
+          </script>
+  </body>
+
+  </html>

@@ -22,7 +22,10 @@ class MockEngine {
    * Grava um novo mock no banco de dados (sempre grava)
    */
   recordMock(
-    mockData: Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>,
+    mockData: Omit<
+      MockConfig,
+      'id' | 'createdAt' | 'updatedAt' | 'patternType'
+    >,
   ): string | null {
     try {
       const id = dbService.saveMockConfig(mockData);
@@ -42,7 +45,9 @@ class MockEngine {
    */
   updateMock(
     id: string,
-    mockData: Partial<Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt'>>,
+    mockData: Partial<
+      Omit<MockConfig, 'id' | 'createdAt' | 'updatedAt' | 'patternType'>
+    >,
   ): boolean {
     try {
       const result = dbService.updateMockConfig(id, mockData);
@@ -122,6 +127,7 @@ class MockEngine {
         headers: requestLog.responseHeaders || '{}',
         body: requestLog.responseBody || '',
         active: true,
+        patternType: 'exact' as const,
       };
 
       return this.recordMock(mockData);
